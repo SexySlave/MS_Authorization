@@ -72,7 +72,14 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws IOException {
         System.out.println("Got header");
-        if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "401")){
+        if (frame.headers().status() == null){
+            try {
+                handler.saveTokensInFile(frame.headers().get("accesstoken").toString(), frame.headers().get("refreshtoken").toString());
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+        else if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "401")){
             System.out.println("---1");
             if (frame.headers().get("info").toString().equals("tokenExpired")){
                 System.out.println("---2");
@@ -175,7 +182,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
             String rt = reader.readLine();
             reader.close();
 
-            saveTokensInFile(at, rt);
+            saveTokensInFile(at, rt.split(" ")[1]);
         }
     }
 

@@ -197,6 +197,7 @@ public class Authorization {
                 .withIssuer("MS_AUTHORIZATION")
                 .withSubject("MS_AUTHORIZATION_user")
                 .withClaim("type", "refreshtoken")
+                //.withClaim("redreshtokenUUID", )
                 .withClaim("version", getRefreshTokenVersion(userId))
                 .withIssuedAt(new Date())
                 .withExpiresAt(new Date(System.currentTimeMillis() + 1000L*60*60*24*60)) // 60 days
@@ -209,6 +210,7 @@ public class Authorization {
     }
 
     public String generateRefreshJWT(Boolean updateVersion){
+
         if (updateVersion){
             updateRefreshTokenVersion(user.getId());
         }
@@ -217,6 +219,7 @@ public class Authorization {
                 .withSubject("MS_AUTHORIZATION_user")
                 .withClaim("type", "refreshtoken")
                 .withClaim("version", user.getJWTversion())
+                .withClaim("refreshtokenuuid", user.getRefreshtokenUUID())
                 .withIssuedAt(new Date())
                 .withExpiresAt(new Date(System.currentTimeMillis() + 1000L*60*60*24*60)) // 60 days
                 .withJWTId(UUID.randomUUID()
@@ -224,6 +227,33 @@ public class Authorization {
                 .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
                 .sign(algorithm);
         return jwtRefreshToken;
+    }
+
+    public String generateRefereshJWTFromJWT(String refreshJWT){  // using only when obtaining refreshtoken
+            JWTVerifier verifier = JWT.require(algorithm)
+                    .withIssuer("MS_AUTHORIZATION")
+                    .build();
+
+            int refreshUUID = verifier.verify(refreshJWT).getClaim("refreshtokenuuid").asInt();
+
+
+            updateRefreshTokenVersionByUUID(refreshUUID);
+            updateInternalUserByRefreshUUID(refreshUUID);
+
+            String jwtRefreshToken = JWT.create()
+                    .withIssuer("MS_AUTHORIZATION")
+                    .withSubject("MS_AUTHORIZATION_user")
+                    .withClaim("type", "refreshtokenuuid")
+                    .withClaim("version", user.getJWTversion())
+                    .withClaim("refreshtokenuuid", user.getRefreshtokenUUID())
+                    .withIssuedAt(new Date())
+                    .withExpiresAt(new Date(System.currentTimeMillis() + 1000L*60*60*24*60)) // 60 days
+                    .withJWTId(UUID.randomUUID()
+                            .toString())
+                    .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
+                    .sign(algorithm);
+            return jwtRefreshToken;
+
     }
 
     private int getRefreshTokenVersion(int userId){
@@ -236,6 +266,18 @@ public class Authorization {
         session.close();
         sessionFactory.close();
         return JWTversion;
+    }
+
+    private  int getRefereshTokenUUID(int userId){
+        SessionFactory sessionFactory = cfg.buildSessionFactory();
+        Session session = sessionFactory.openSession();
+        int JWTUUID = session.createQuery("SELECT refreshTokenUUID from UsersDefault where id =:i", int.class)
+                .setParameter("i", userId).getSingleResultOrNull();
+
+
+        session.close();
+        sessionFactory.close();
+        return JWTUUID;
     }
 
     private void updateRefreshTokenVersion(int userId){
@@ -256,6 +298,60 @@ public class Authorization {
         }
 
 
+
+    }
+
+    private void updateRefreshTokenVersionByUUID(int refreshTokenUUID){
+        Session session = sessionFactory.openSession();
+        Transaction transaction = session.beginTransaction();
+        try {
+            session.createMutationQuery("update UsersDefault set JWTversion = :v where refreshtokenUUID = :i")
+                    .setParameter("i", refreshTokenUUID)
+                    .setParameter("v",
+                            (session.createQuery("SELECT JWTversion from UsersDefault where refreshtokenUUID =:i", int.class).setParameter("i", refreshTokenUUID).getSingleResultOrNull())+1 )
+                    .executeUpdate();
+            transaction.commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            transaction.rollback();
+        } finally {
+            session.close();
+        }
+
+
+
+    }
+
+    private void updateInternalUserByRefreshUUID(int refreshTokenUUID){
+        try {
+
+
+            Session session = sessionFactory.openSession();
+            UsersDefault user = session.createQuery("from UsersDefault where refreshtokenUUID =:i", UsersDefault.class).setParameter("i", refreshTokenUUID).getSingleResultOrNull();
+
+
+            session.close();
+            //sessionFactory.close();
+
+            if (user != null) {
+                this.user = user;
+                System.out.println("ist null");
+                System.out.println(user.getLogin());
+                System.out.println(user.getPassword());
+
+
+            } else {
+                System.out.println("is null");
+
+            }
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            throw new RuntimeException(ex);
+
+
+        }
     }
 
 }

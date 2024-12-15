@@ -79,13 +79,14 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
         } else if (authHeader[0].equals("Bearer")) {
             if (authorization.validateJWT(authHeader[1])) {
                 if (authorization.getJWTType(authHeader[1]).equals("refreshtoken")) {
-                    System.out.println("Got refreshtoken");
-                    Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-                    headersFrame.headers().status("200");
-                    headersFrame.headers().add("accesstoken", authorization.generateAccessJWT());
-                    headersFrame.headers().add("refreshtoken", authorization.generateRefreshJWT(true));
-                    headersFrame.headers().addInt("content-length", CONTENT.length);
-                    ctx.writeAndFlush(headersFrame);
+
+                    System.out.println("Got valid refreshtoken");
+                    Http3HeadersFrame headersFrame2 = new DefaultHttp3HeadersFrame();
+                    //headersFrame2.headers().status("200");
+                    headersFrame2.headers().add("accesstoken", authorization.generateAccessJWT());
+                    headersFrame2.headers().add("refreshtoken", authorization.generateRefereshJWTFromJWT(authHeader[1]));
+                    headersFrame2.headers().addInt("content-length", CONTENT.length);
+                    ctx.writeAndFlush(headersFrame2);
                 } else {
                     System.out.println("Token is valid");
                     Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();

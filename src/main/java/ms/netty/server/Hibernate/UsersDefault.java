@@ -28,14 +28,14 @@ public class UsersDefault {
     private int JWTversion;
 
     @Column
-    private String JWTrefreshtoken;
+    private int refreshtokenUUID;
 
-    public String getJWTrefreshtoken() {
-        return JWTrefreshtoken;
+    public int getRefreshtokenUUID() {
+        return refreshtokenUUID;
     }
 
-    public void setJWTrefreshtoken(String JWTrefreshtoken) {
-        this.JWTrefreshtoken = JWTrefreshtoken;
+    public void setRefreshtokenUUID(int refreshtokenUUID) {
+        this.refreshtokenUUID = refreshtokenUUID;
     }
 
     @Column
