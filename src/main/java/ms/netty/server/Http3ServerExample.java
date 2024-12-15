@@ -45,13 +45,16 @@ import io.netty.util.ReferenceCountUtil;
 import org.apache.log4j.BasicConfigurator;
 
 import java.net.InetSocketAddress;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeUnit;
 
 
 public final class Http3ServerExample {
     private static final byte[] CONTENT = "Hello World!\r\n".getBytes(CharsetUtil.US_ASCII);
     static final int PORT = 9999;
-
+    static KeyPair keyPair = generateRSAKeyPair();
     private Http3ServerExample() { }
 
     public static void main(String... args) throws Exception {
@@ -86,44 +89,7 @@ public final class Http3ServerExample {
                                     // Called for each request-stream,
                                     @Override
                                     protected void initChannel(QuicStreamChannel ch) {
-                                        ch.pipeline().addLast(new Http3RequestStreamInboundHandler() {
-
-                                            @Override
-                                            protected void channelRead(
-                                                    ChannelHandlerContext ctx, Http3HeadersFrame frame) {
-                                                System.out.println("Custom header: " + frame.headers().get("req"));
-
-                                                Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-                                                headersFrame.headers().status("200");
-                                                headersFrame.headers().add("server", "netty_copy");
-                                                headersFrame.headers().addInt("content-length", CONTENT.length);
-                                                ctx.write(headersFrame);
-                                                ctx.writeAndFlush(new DefaultHttp3DataFrame(
-                                                                Unpooled.wrappedBuffer(CONTENT)));
-
-
-                                                ReferenceCountUtil.release(frame);
-                                            }
-
-                                            @Override
-                                            protected void channelRead(
-                                                    ChannelHandlerContext ctx, Http3DataFrame frame) {
-                                                ReferenceCountUtil.release(frame);
-
-                                            }
-
-                                            @Override
-                                            protected void channelInputClosed(ChannelHandlerContext ctx) {
-                                                Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-                                                headersFrame.headers().status("200");
-                                                headersFrame.headers().add("server", "netty_copy");
-                                                headersFrame.headers().addInt("content-length", CONTENT.length);
-                                                ctx.write(headersFrame);
-                                                ctx.writeAndFlush(new DefaultHttp3DataFrame(
-                                                                Unpooled.wrappedBuffer(CONTENT)))
-                                                        .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
-                                            }
-                                        });
+                                        ch.pipeline().addLast(new ServerChannelHandler(keyPair));
                                     }
                                 }));
                     }
@@ -138,5 +104,16 @@ public final class Http3ServerExample {
         } finally {
             group.shutdownGracefully();
         }
+    }
+
+    public static KeyPair generateRSAKeyPair()   {
+        KeyPairGenerator keyPairGenerator = null;
+        try {
+            keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        keyPairGenerator.initialize(512); // Размер ключа: 2048 бит
+        return keyPairGenerator.generateKeyPair();
     }
 }

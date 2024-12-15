@@ -30,7 +30,6 @@ import io.netty.incubator.codec.quic.QuicSslContext;
 import io.netty.incubator.codec.quic.QuicSslContextBuilder;
 import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.NetUtil;
-import ms.netty.server.Http3ServerExample;
 import org.apache.log4j.BasicConfigurator;
 
 import java.net.InetSocketAddress;
@@ -69,7 +68,7 @@ public final class Http3ClientExample {
                     .get();
 
             io.netty.util.concurrent.Future<QuicStreamChannel> quicStreamChannelFuture = Http3.newRequestStream(quicChannel,
-                     new ClientHandler() );
+                     new ClientChannelHandler() );
             quicStreamChannelFuture.sync();
             QuicStreamChannel streamChannel = quicStreamChannelFuture.getNow();
 
