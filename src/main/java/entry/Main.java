@@ -1,29 +1,32 @@
 package entry;
 
-import ms.netty.server.Authorization;
+import ms.netty.client.Http3ClientExample;
+import ms.netty_old.server.Authorization;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) throws Exception {
-//        DBConfig mydbconfug = new DBConfig();
-//        mydbconfug.setUrl("jdbc:mysql://localhost:3306/ms_authorization");
-//        mydbconfug.setUsername("root");
-//        mydbconfug.setPassword("");
+//
 
-
-        Authorization a = new Authorization(generateRSAKeyPair());
-//        String jwt = a.generateJWT();
-//        System.out.println(a.validateJWT(jwt));
-        a.checkUser("lolipop:qwerty123");
-
-
-        System.out.println(a.validateJWT(a.generateAccessJWT()));
+        for (int i = 0; i != 500; i ++){
+            TimeUnit.MILLISECONDS.sleep(10);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Http3ClientExample.main();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }).start();
+        }
 
 
 

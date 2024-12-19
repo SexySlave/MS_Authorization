@@ -1,7 +1,7 @@
 package ms.netty.debug;
 
-import ms.netty.trash.DBConfig;
 import ms.netty.server.Hibernate.UsersDefault;
+import ms.netty.trash.DBConfig;
 
 public class DefaultDBConfig extends DBConfig {
 

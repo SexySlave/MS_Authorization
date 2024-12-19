@@ -1,4 +1,4 @@
-//package ms.netty.trash;
+package ms.netty.trash;//package ms.netty.trash;
 //
 //import io.netty.bootstrap.Bootstrap;
 //import io.netty.channel.Channel;
