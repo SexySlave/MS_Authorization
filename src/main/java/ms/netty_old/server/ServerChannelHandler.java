@@ -1,4 +1,4 @@
-package ms.netty.server;
+package ms.netty_old.server;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -6,7 +6,6 @@ import io.netty.incubator.codec.http3.*;
 import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
-import org.hibernate.SessionFactory;
 
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
@@ -16,12 +15,8 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
     private static final byte[] CONTENT = "Hello World!\r\n".getBytes(CharsetUtil.US_ASCII);
     Authorization authorization;
     KeyPair keyPair;
-    SessionFactory sessionFactory;
-    public ServerChannelHandler(KeyPair keyPair, SessionFactory sessionFactory){
+    public ServerChannelHandler(KeyPair keyPair){
         this.keyPair=keyPair;
-        this.sessionFactory = sessionFactory;
-        System.out.println("hash");
-        System.out.println(this.hashCode());
     }
 
     @Override
@@ -40,12 +35,11 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
             if (authorization.checkUser(logData)) {
 
                 Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-                headersFrame.headers().status("202");
+                headersFrame.headers().status("200");
                 headersFrame.headers().add("accesstoken", authorization.generateAccessJWT());
                 headersFrame.headers().add("refreshtoken", authorization.generateRefreshJWT(true));
                 headersFrame.headers().addInt("content-length", CONTENT.length);
                 ctx.writeAndFlush(headersFrame);
-
 
 
 //                Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
@@ -65,21 +59,13 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
                 if (frame.headers().get("info") != null && frame.headers().get("info").toString().equals("reg")) {
                     System.out.println("---Registration");
                     authorization.registerUser(logData);
-                    Http3HeadersFrame headersFrame2 = new DefaultHttp3HeadersFrame();
-                    headersFrame2.headers().status("202");
-                    headersFrame2.headers().add("accesstoken", authorization.generateAccessJWT());
-                    headersFrame2.headers().add("refreshtoken", authorization.generateRefreshJWT(true));
-                    headersFrame2.headers().addInt("content-length", CONTENT.length);
-                    System.out.println(headersFrame2.headers());
-                    ctx.writeAndFlush(headersFrame2);
-
                 } else {
 
 
                     Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
                     headersFrame.headers().status("401");
                     headersFrame.headers().add("info", "User not found, do u wanna sign up?");
-//                    headersFrame.headers().add("server", "netty_copy");
+                    headersFrame.headers().add("server", "netty_copy");
                     headersFrame.headers().addInt("content-length", CONTENT.length);
                     ctx.writeAndFlush(headersFrame);
 //                ctx.writeAndFlush(new DefaultHttp3DataFrame(
@@ -96,33 +82,28 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
 
                     System.out.println("Got valid refreshtoken");
                     Http3HeadersFrame headersFrame2 = new DefaultHttp3HeadersFrame();
-                    headersFrame2.headers().status("202");
+                    //headersFrame2.headers().status("200");
                     headersFrame2.headers().add("accesstoken", authorization.generateAccessJWT());
                     headersFrame2.headers().add("refreshtoken", authorization.generateRefereshJWTFromJWT(authHeader[1]));
                     headersFrame2.headers().addInt("content-length", CONTENT.length);
                     ctx.writeAndFlush(headersFrame2);
-                    System.out.println("Server sent new at and rt");
-                } else  {
-                    System.out.println("Got valid accesstoken");
+                } else {
+                    System.out.println("Token is valid");
                     Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
                     headersFrame.headers().status("202");
                     headersFrame.headers().add("info", "accessed");
+                    headersFrame.headers().add("server", "netty_copy");
                     headersFrame.headers().add("accesstoken", authorization.generateAccessJWT());
                     headersFrame.headers().addInt("content-length", CONTENT.length);
                     ctx.writeAndFlush(headersFrame);
+
                 }
-            } else if(frame.headers().get("info")!=null && frame.headers().get("info").toString().equals("refreshToken")){
-                System.out.println("refresh token is not valid");
-                Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-                headersFrame.headers().status("401");
-                headersFrame.headers().add("info", "refreshTokenExpired");
-                headersFrame.headers().addInt("content-length", CONTENT.length);
-                ctx.writeAndFlush(headersFrame);
             } else {
-                System.out.println("access token is not valid");
+                System.out.println("Token is not valid");
                 Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
                 headersFrame.headers().status("401");
-                headersFrame.headers().add("info", "accessTokenExpired");
+                headersFrame.headers().add("info", "tokenExpired");
+                headersFrame.headers().add("server", "netty_copy");
                 headersFrame.headers().addInt("content-length", CONTENT.length);
                 ctx.writeAndFlush(headersFrame);
 
@@ -142,29 +123,40 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
 
     }
 
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        super.userEventTriggered(ctx, evt);
+        System.out.println("dfmkdl,f;.dg");
+    }
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelRegistered(ctx);
+        System.out.println("dfmkdl,f;.dg");
+    }
+
+    @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+        super.channelWritabilityChanged(ctx);
+        System.out.println("dfmkdl,f;.'dg");
+    }
 
     @Override
     protected void channelInputClosed(ChannelHandlerContext ctx) {
-//        Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-//        headersFrame.headers().status("200");
-//        headersFrame.headers().add("server", "netty_copy");
-//        headersFrame.headers().addInt("content-length", CONTENT.length);
-//        ctx.write(headersFrame);
-//        ctx.writeAndFlush(new DefaultHttp3DataFrame(
-//                        Unpooled.wrappedBuffer(CONTENT)))
-//                .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
+        Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
+        headersFrame.headers().status("200");
+        headersFrame.headers().add("server", "netty_copy");
+        headersFrame.headers().addInt("content-length", CONTENT.length);
+        ctx.write(headersFrame);
+        ctx.writeAndFlush(new DefaultHttp3DataFrame(
+                        Unpooled.wrappedBuffer(CONTENT)))
+                .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
 
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        authorization = new Authorization(keyPair, sessionFactory);
-    }
-
-    @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        super.channelUnregistered(ctx);
-        System.out.println("Channel unregistered");
+        authorization = new Authorization(keyPair);
     }
 }

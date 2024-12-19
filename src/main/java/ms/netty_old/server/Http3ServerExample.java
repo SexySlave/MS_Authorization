@@ -1,4 +1,4 @@
-package ms.netty.server;
+package ms.netty_old.server;
 
 /*
  * Copyright 2020 The Netty Project
@@ -17,6 +17,7 @@ package ms.netty.server;
  */
 
 
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -25,13 +26,15 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.incubator.codec.http3.Http3;
+
 import io.netty.incubator.codec.http3.Http3ServerConnectionHandler;
-import io.netty.incubator.codec.quic.*;
+import io.netty.incubator.codec.quic.InsecureQuicTokenHandler;
+import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.incubator.codec.quic.QuicSslContext;
+import io.netty.incubator.codec.quic.QuicSslContextBuilder;
+import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.CharsetUtil;
-import ms.netty.server.Hibernate.UsersDefault;
 import org.apache.log4j.BasicConfigurator;
-import org.hibernate.SessionFactory;
-import org.hibernate.cfg.Configuration;
 
 import java.net.InetSocketAddress;
 import java.security.KeyPair;
@@ -44,30 +47,19 @@ public final class Http3ServerExample {
     private static final byte[] CONTENT = "Hello World!\r\n".getBytes(CharsetUtil.US_ASCII);
     static final int PORT = 9999;
     static KeyPair keyPair = generateRSAKeyPair();
-    private static SessionFactory sessionFactory;
     private Http3ServerExample() { }
 
     public static void main(String... args) throws Exception {
 
         BasicConfigurator.configure();
-
-        Configuration cfg = new Configuration();
-        cfg.setProperty("hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver");
-        cfg.setProperty("hibernate.connection.url", "jdbc:mysql://localhost:3306/ms_authorization");
-        cfg.setProperty("hibernate.connection.username", "root");
-        cfg.setProperty("hibernate.connection.password", "");
-        cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
-        cfg.addAnnotatedClass(UsersDefault.class);
-        sessionFactory = cfg.buildSessionFactory();
-
         int port;
-
+        // Allow to pass in the port so we can also use it to run h3spec against
         if (args.length == 1) {
             port = Integer.parseInt(args[0]);
         } else {
             port = PORT;
         }
-
+        System.out.println("PORT: " + port);
         NioEventLoopGroup group = new NioEventLoopGroup(1);
         SelfSignedCertificate cert = new SelfSignedCertificate();
 
@@ -75,7 +67,7 @@ public final class Http3ServerExample {
                 .applicationProtocols(Http3.supportedApplicationProtocols()).build();
         ChannelHandler codec = Http3.newQuicServerCodecBuilder()
                 .sslContext(sslContext)
-                .maxIdleTimeout(100000, TimeUnit.MILLISECONDS)
+                .maxIdleTimeout(5000, TimeUnit.MILLISECONDS)
                 .initialMaxData(10000000)
                 .initialMaxStreamDataBidirectionalLocal(1000000)
                 .initialMaxStreamDataBidirectionalRemote(1000000)
@@ -90,7 +82,7 @@ public final class Http3ServerExample {
                                     // Called for each request-stream,
                                     @Override
                                     protected void initChannel(QuicStreamChannel ch) {
-                                        ch.pipeline().addLast(new ServerChannelHandler(keyPair, sessionFactory));
+                                        ch.pipeline().addLast(new ServerChannelHandler(keyPair));
                                     }
                                 }));
                     }

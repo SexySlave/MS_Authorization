@@ -1,4 +1,4 @@
-package ms.netty.client;
+package ms.netty_old.client;
 
 /*
  * Copyright 2020 The Netty Project
@@ -25,21 +25,22 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.incubator.codec.http3.Http3;
 import io.netty.incubator.codec.http3.Http3ClientConnectionHandler;
-import io.netty.incubator.codec.quic.*;
+import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.incubator.codec.quic.QuicSslContext;
+import io.netty.incubator.codec.quic.QuicSslContextBuilder;
+import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.NetUtil;
 import org.apache.log4j.BasicConfigurator;
-import org.apache.log4j.Logger;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 public final class Http3ClientExample {
-    private Http3ClientExample() {
-    }
+    private Http3ClientExample() { }
 
     public static void main(String... args) throws Exception {
 
-        //yBasicConfigurator.configure();
+        BasicConfigurator.configure();
 
         NioEventLoopGroup group = new NioEventLoopGroup(1);
 
@@ -49,7 +50,7 @@ public final class Http3ClientExample {
                     .applicationProtocols(Http3.supportedApplicationProtocols()).build();
             ChannelHandler codec = Http3.newQuicClientCodecBuilder()
                     .sslContext(context)
-                    .maxIdleTimeout(10000, TimeUnit.MILLISECONDS)
+                    .maxIdleTimeout(5000, TimeUnit.MILLISECONDS)
                     .initialMaxData(10000000)
                     .initialMaxStreamDataBidirectionalLocal(1000000)
                     .build();
@@ -59,16 +60,15 @@ public final class Http3ClientExample {
                     .channel(NioDatagramChannel.class)
                     .handler(codec)
                     .bind(0).sync().channel();
-
+            System.out.println(NetUtil.LOCALHOST4);
             QuicChannel quicChannel = QuicChannel.newBootstrap(channel)
                     .handler(new Http3ClientConnectionHandler())
                     .remoteAddress(new InetSocketAddress("89.208.207.43", 1111))
                     .connect()
                     .get();
 
-
             io.netty.util.concurrent.Future<QuicStreamChannel> quicStreamChannelFuture = Http3.newRequestStream(quicChannel,
-                    new ClientChannelHandler(quicChannel, null));
+                     new ClientChannelHandler() );
             quicStreamChannelFuture.sync();
             QuicStreamChannel streamChannel = quicStreamChannelFuture.getNow();
 
@@ -85,6 +85,7 @@ public final class Http3ClientExample {
 //                    .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT).sync();
 
 
+
             // Wait for the stream channel and quic channel to be closed (this will happen after we received the FIN).
             // After this is done we will close the underlying datagram channel.
             streamChannel.closeFuture().sync();
@@ -95,12 +96,5 @@ public final class Http3ClientExample {
         } finally {
             group.shutdownGracefully();
         }
-
-
-
-
-
-
-
     }
 }

@@ -1,78 +1,93 @@
 package ms.netty.client;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.incubator.codec.http3.DefaultHttp3HeadersFrame;
-import io.netty.incubator.codec.http3.Http3DataFrame;
-import io.netty.incubator.codec.http3.Http3HeadersFrame;
-import io.netty.incubator.codec.http3.Http3RequestStreamInboundHandler;
+import io.netty.incubator.codec.http3.*;
+import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.CharsetUtil;
 import io.netty.util.NetUtil;
 import io.netty.util.ReferenceCountUtil;
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.lf5.LogLevel;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 //FileReader fileReader = new FileReader("tokens.txt");
+
+
 
 public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
 
     UIHandler handler = new UIHandler();
+    Http3HeadersFrame http3HeadersFrame;
 
-    String logData = "lolipop:qwerty12223";
+    QuicChannel quicChannel;
+    Logger log = Logger.getLogger(ClientChannelHandler.class);
+
+    String logData = "lolipopssssss:qwerty12223";
     String logDataEncoded = Base64.getEncoder().encodeToString(logData.getBytes(StandardCharsets.UTF_8));
+
+
+    public ClientChannelHandler (QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) {
+        this.quicChannel=quicChannel;
+        this.http3HeadersFrame=http3HeadersFrame;
+    }
+
 
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
 
-        BufferedReader reader = new BufferedReader(new FileReader("src/main/java/ms/netty/client/tokens"));
-        String at = reader.readLine();
-        String rt = reader.readLine();
-        reader.close();
-
-        System.out.println(at +"\n"+ rt);
-        if (at!=null && rt!=null){
-            at = at.split(" ")[1];
-            rt = rt.split(" ")[1];
-        }
-
-
-
-        if (at==null | rt==null ) {
-            Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
-            System.out.println(NetUtil.LOCALHOST4.getHostAddress());
-            System.out.println(logData);
-            frame.headers().method("GET").path("/")
-                    .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
-                    .scheme("https").add("authorization", "Basic "+ logDataEncoded);
-            ctx.writeAndFlush(frame);
-            System.out.println(frame.headers());
+        if (http3HeadersFrame!=null){
+            ctx.writeAndFlush(http3HeadersFrame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
         } else {
-            Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
-            System.out.println(NetUtil.LOCALHOST4.getHostAddress());
-            frame.headers().method("GET").path("/")
-                    .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
-                    .scheme("https").add("authorization", "Bearer "+ at);
-            ctx.writeAndFlush(frame);
-            System.out.println(frame.headers());
+            BufferedReader reader = new BufferedReader(new FileReader("src/main/java/ms/netty/client/tokens")); // token location.
+                                                                                                                        // it can be everything (file, ur local DB, etc.)
+            String at = reader.readLine();
+            String rt = reader.readLine();
+            reader.close();
+
+            if (at!=null && rt!=null){
+                at = at.split(" ")[1];
+                rt = rt.split(" ")[1];
+            }
+
+            System.out.println("Connecting to server from IP: " +  NetUtil.LOCALHOST4.getHostAddress());
+            if (at==null | rt==null ) {
+                System.out.println("Trying to log in with user data: " + logData);
+                System.out.println("Encoding sensitive data...");
+
+                Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
+                frame.headers().method("GET").path("/")
+                        .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
+                        .scheme("https").add("authorization", "Basic "+ logDataEncoded);
+                ctx.writeAndFlush(frame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
+
+            } else {
+                System.out.println("Tokens are detected. Trying to connect... ");
+
+                Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
+                frame.headers().method("GET").path("/")
+                        .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
+                        .scheme("https").add("authorization", "Bearer "+ at);
+                ctx.writeAndFlush(frame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
+
+            }
         }
-
-
-
-
-
-
-
-
-
     }
 
-
     @Override
-    protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws IOException {
-        System.out.println("Got header");
+    protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws IOException, InterruptedException {
         if (frame.headers().status() == null){
+            System.out.println("null status");
             try {
                 handler.saveTokensInFile(frame.headers().get("accesstoken").toString(), frame.headers().get("refreshtoken").toString());
             } catch (Exception e){
@@ -80,10 +95,8 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
             }
         }
         else if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "401")){
-            System.out.println("---1");
-            if (frame.headers().get("info").toString().equals("tokenExpired")){
-                System.out.println("---2");
-                System.out.println(frame.headers().get("info").toString());
+            if (frame.headers().get("info").toString().equals("accessTokenExpired")){
+                System.out.println("access token expired, sending refresh token...");
 
                 BufferedReader reader = new BufferedReader(new FileReader("src/main/java/ms/netty/client/tokens"));
                 String at = reader.readLine();
@@ -93,49 +106,43 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
                 rt = rt.split(" ")[1];
 
                 Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
-//                frame1.headers().method("GET").path("/")
-//                        .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
-//                        .scheme("https")
-//                        .add("authorization", "Bearer "+ rt);
-                frame1.headers()
-                        .add("authorization", "Bearer "+ rt);
-                System.out.println(frame1.headers());
-                ctx.writeAndFlush(frame1);
+                frame1.headers().method("GET").path("/")
+                        .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
+                        .scheme("https")
+                        .add("authorization", "Bearer "+ rt)
+                        .add("info", "refreshToken");
 
-
-
-
+                createNewChannelAndSendRequest(quicChannel, frame1);
+            } else if(frame.headers().get("info").toString().equals("refreshTokenExpired")){
+                System.out.println("Refresh token expired. Clean file with tokens and try again!");
             } else {
-                System.out.println("---3");
                 String answ = handler.YesOrNotQuestion(frame.headers().get("info") + "\n" + "Write Y/N: \n");
                 if (answ.equalsIgnoreCase("y")) {
-                    System.out.println("---4");
-                    System.out.println("Registration");
+                    System.out.println("registration...");
                     Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
+                    frame1.headers().method("GET").path("/")
+                            .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
+                            .scheme("https");
                     frame1.headers().add("authorization", "Basic " + logDataEncoded).add("info", "reg");
 
-                    ctx.writeAndFlush(frame1);
-                    System.out.println(frame1.headers());
-
-                }//else{ReferenceCountUtil.release(frame);}
+                    createNewChannelAndSendRequest(quicChannel, frame1);
+                } else {
+                    System.exit(0);
+                }
             }
-        } else if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "200")) {
-            System.out.println("---5");
-            System.out.println("accessToken: " + frame.headers().get("accesstoken"));
-            System.out.println("refreshToken: " + frame.headers().get("refreshtoken"));
-            handler.saveTokensInFile(frame.headers().get("accesstoken").toString(), frame.headers().get("refreshtoken").toString());
-
-        } else if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "202")) {
-            System.out.println("---6");
-            System.out.println("Token accessed");
-            handler.refreshAccessTokenInFile(frame.headers().get("accesstoken").toString());
+        }  else if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "202")) {
+            if (frame.headers().get("refreshtoken")!=null){
+                System.out.println("access and refresh tokens have been received, user authorized");
+                System.out.println("accessToken: " + frame.headers().get("accesstoken"));
+                System.out.println("refreshToken: " + frame.headers().get("refreshtoken"));
+                handler.saveTokensInFile(frame.headers().get("accesstoken").toString(), frame.headers().get("refreshtoken").toString());
+            } else {
+                System.out.println("new access token have been received, user authorized");
+                handler.refreshAccessTokenInFile(frame.headers().get("accesstoken").toString());
+            }
+            ctx.close();
         }
-        //else{ReferenceCountUtil.release(frame);}
         ReferenceCountUtil.release(frame);
-
-
-
-
     }
 
     @Override
@@ -146,7 +153,13 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
 
     @Override
     protected void channelInputClosed(ChannelHandlerContext ctx) {
+        System.out.println("ctxclosed");
         ctx.close();
+    }
+
+    public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException {
+        log.debug("Creating new quicChannel");
+        Http3.newRequestStream(quicChannel, new ClientChannelHandler(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();;
     }
 
     public static class UIHandler{

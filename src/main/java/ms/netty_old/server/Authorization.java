@@ -1,11 +1,11 @@
-package ms.netty.server;
+package ms.netty_old.server;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import ms.netty.server.Hibernate.UsersDefault;
+import ms.netty_old.server.Hibernate.UsersDefault;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
@@ -30,13 +30,19 @@ public class Authorization {
     //Algorithm algorithm = Algorithm.RSA256()
     UsersDefault user;
 
-    public Authorization(KeyPair keyPair, SessionFactory sessionFactory) {
-
+    public Authorization(KeyPair keyPair) {
+        cfg = new Configuration();
+        cfg.setProperty("hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver");
+        cfg.setProperty("hibernate.connection.url", "jdbc:mysql://localhost:3306/ms_authorization");
+        cfg.setProperty("hibernate.connection.username", "root");
+        cfg.setProperty("hibernate.connection.password", "");
+        cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        cfg.addAnnotatedClass(UsersDefault.class);
+        sessionFactory = cfg.buildSessionFactory();
         this.keyPair = keyPair;
         this.publicKey = (RSAPublicKey) keyPair.getPublic();
         this.privateKey = (RSAPrivateKey) keyPair.getPrivate();
         this.algorithm = Algorithm.RSA256(publicKey, privateKey);
-        this.sessionFactory = sessionFactory;
     }
 
 
@@ -49,7 +55,6 @@ public class Authorization {
 
 
             session.close();
-            System.out.println("session is open" + session.isOpen());
             //sessionFactory.close();
 
             if (user != null) {
@@ -78,7 +83,6 @@ public class Authorization {
         session.getTransaction().begin();
         session.persist(new UsersDefault(logData.split(":")[0], logData.split(":")[1], null, 0));
         session.getTransaction().commit();
-        session.close();
     }
 
     //    public String generateJWT() throws Exception {
@@ -243,15 +247,14 @@ public class Authorization {
     }
 
     private void updateInternalUserByRefreshUUID(int refreshTokenUUID) {
-        Session session = sessionFactory.openSession();
         try {
 
 
-
+            Session session = sessionFactory.openSession();
             UsersDefault user = session.createQuery("from UsersDefault where refreshtokenUUID =:i", UsersDefault.class).setParameter("i", refreshTokenUUID).getSingleResultOrNull();
 
 
-
+            session.close();
             //sessionFactory.close();
 
             if (user != null) {
@@ -272,8 +275,6 @@ public class Authorization {
             throw new RuntimeException(ex);
 
 
-        } finally {
-            session.close();
         }
     }
 
