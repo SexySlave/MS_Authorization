@@ -3,6 +3,8 @@ package entry;
 import ms.netty.client.Http3ClientExample;
 import ms.netty_old.server.Authorization;
 
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -13,20 +15,32 @@ import java.util.concurrent.TimeUnit;
 public class Main {
     public static void main(String[] args) throws Exception {
 //
-
-        for (int i = 0; i != 500; i ++){
-            TimeUnit.MILLISECONDS.sleep(10);
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Http3ClientExample.main();
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            }).start();
+        byte [] hardwareAddress =  NetworkInterface.getByInetAddress(InetAddress.getLocalHost()).getHardwareAddress();
+        String[] hexadecimal = new String[hardwareAddress.length];
+        for (int i = 0; i < hardwareAddress.length; i++) {
+            hexadecimal[i] = String.format("%02X", hardwareAddress[i]);
         }
+        String macAddress = String.join("-", hexadecimal);
+        System.out.println(macAddress);
+
+
+        // Добавить отправку мак-адресса, добавить его в таблицу с жвт, настроить авторизацию без обращения к юзеру
+
+
+
+//        for (int i = 0; i != 500; i ++){
+//            TimeUnit.MILLISECONDS.sleep(10);
+//            new Thread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    try {
+//                        Http3ClientExample.main();
+//                    } catch (Exception e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                }
+//            }).start();
+//        }
 
 
 

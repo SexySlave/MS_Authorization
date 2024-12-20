@@ -16,6 +16,10 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
@@ -33,13 +37,28 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
     QuicChannel quicChannel;
     Logger log = Logger.getLogger(ClientChannelHandler.class);
 
-    String logData = "lolipopssssss:qwerty12223";
-    String logDataEncoded = Base64.getEncoder().encodeToString(logData.getBytes(StandardCharsets.UTF_8));
+    String logData = "lolipopssss77121ww22214433231233221112221133444337ss:qwerty12223";
+    String logDataEncoded;
+
+    String macAddress;
 
 
-    public ClientChannelHandler (QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) {
+
+
+    public ClientChannelHandler (QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws UnknownHostException, SocketException {
         this.quicChannel=quicChannel;
         this.http3HeadersFrame=http3HeadersFrame;
+
+        byte [] hardwareAddress  =  NetworkInterface.getByInetAddress(InetAddress.getLocalHost()).getHardwareAddress();
+        String[] hexadecimal = new String[hardwareAddress.length];
+        for (int i = 0; i < hardwareAddress.length; i++) {
+            hexadecimal[i] = String.format("%02X", hardwareAddress[i]);
+        }
+        macAddress = String.join("-", hexadecimal);
+        logData = logData.concat(":"+macAddress);
+        logDataEncoded = Base64.getEncoder().encodeToString(logData.getBytes(StandardCharsets.UTF_8));
+        System.out.println(logData);
+
     }
 
 
@@ -47,7 +66,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
         super.channelActive(ctx);
 
         if (http3HeadersFrame!=null){
-            ctx.writeAndFlush(http3HeadersFrame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
+            ctx.writeAndFlush(http3HeadersFrame);
         } else {
             BufferedReader reader = new BufferedReader(new FileReader("src/main/java/ms/netty/client/tokens")); // token location.
                                                                                                                         // it can be everything (file, ur local DB, etc.)
@@ -69,7 +88,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
                 frame.headers().method("GET").path("/")
                         .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                         .scheme("https").add("authorization", "Basic "+ logDataEncoded);
-                ctx.writeAndFlush(frame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
+                ctx.writeAndFlush(frame);
 
             } else {
                 System.out.println("Tokens are detected. Trying to connect... ");
@@ -78,7 +97,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
                 frame.headers().method("GET").path("/")
                         .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                         .scheme("https").add("authorization", "Bearer "+ at);
-                ctx.writeAndFlush(frame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
+                ctx.writeAndFlush(frame);
 
             }
         }
@@ -154,10 +173,9 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
     @Override
     protected void channelInputClosed(ChannelHandlerContext ctx) {
         System.out.println("ctxclosed");
-        ctx.close();
     }
 
-    public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException {
+    public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException, SocketException, UnknownHostException {
         log.debug("Creating new quicChannel");
         Http3.newRequestStream(quicChannel, new ClientChannelHandler(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();;
     }

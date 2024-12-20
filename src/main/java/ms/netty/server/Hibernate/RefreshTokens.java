@@ -10,26 +10,50 @@ public class RefreshTokens {
     public RefreshTokens() {
     }
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private int id;
-
-    @Column
-    private int user_id;
-
-    @Column
-    private int tokenUUID;
-
-    @Column
-    private int tokenVersion;
-
-    public int getId() {
-        return id;
+    public RefreshTokens(int user_id, String token, int tokenVersion, String mac_address, UsersDefault usersDefault) {
+        this.user_id = user_id;
+        this.token = token;
+        this.tokenVersion = tokenVersion;
+        this.mac_address = mac_address;
+        this.usersDefault = usersDefault;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    @Id
+    @Column(name = "tokenUUID")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int tokenUUID;
+
+    @Column(name = "user_id")
+    private int user_id;
+
+    @Column(name = "token")
+    private String token;
+
+    @Column(name = "tokenVersion")
+    private int tokenVersion;
+
+    @Column(name = "mac_address")
+    private String mac_address;
+
+
+    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @ManyToOne
+    UsersDefault usersDefault;
+
+    public UsersDefault getUsersDefault() {
+        return usersDefault;
+    }
+
+    public void setUsersDefault(UsersDefault usersDefault) {
+        this.usersDefault = usersDefault;
+    }
+
+    public int getTokenUUID() {
+        return tokenUUID;
+    }
+
+    public void setTokenUUID(int id) {
+        this.tokenUUID = id;
     }
 
     public int getUser_id() {
@@ -40,12 +64,12 @@ public class RefreshTokens {
         this.user_id = user_id;
     }
 
-    public int getTokenUUID() {
-        return tokenUUID;
+    public String getToken() {
+        return token;
     }
 
-    public void setTokenUUID(int tokenUUID) {
-        this.tokenUUID = tokenUUID;
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public int getTokenVersion() {
@@ -54,5 +78,13 @@ public class RefreshTokens {
 
     public void setTokenVersion(int tokenVersion) {
         this.tokenVersion = tokenVersion;
+    }
+
+    public String getMac_address() {
+        return mac_address;
+    }
+
+    public void setMac_address(String mac_address) {
+        this.mac_address = mac_address;
     }
 }

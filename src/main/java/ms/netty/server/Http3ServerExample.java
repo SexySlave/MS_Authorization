@@ -28,6 +28,7 @@ import io.netty.incubator.codec.http3.Http3;
 import io.netty.incubator.codec.http3.Http3ServerConnectionHandler;
 import io.netty.incubator.codec.quic.*;
 import io.netty.util.CharsetUtil;
+import ms.netty.server.Hibernate.RefreshTokens;
 import ms.netty.server.Hibernate.UsersDefault;
 import org.apache.log4j.BasicConfigurator;
 import org.hibernate.SessionFactory;
@@ -58,6 +59,7 @@ public final class Http3ServerExample {
         cfg.setProperty("hibernate.connection.password", "");
         cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
         cfg.addAnnotatedClass(UsersDefault.class);
+        cfg.addAnnotatedClass(RefreshTokens.class);
         sessionFactory = cfg.buildSessionFactory();
 
         int port;

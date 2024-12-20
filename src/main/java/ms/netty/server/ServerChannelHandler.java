@@ -27,38 +27,23 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
     @Override
     protected void channelRead(
             ChannelHandlerContext ctx, Http3HeadersFrame frame) throws NoSuchAlgorithmException {
+
         System.out.println("Server receive a header frame");
+
         String[] authHeader = frame.headers().get("authorization").toString().split(" ");
 
         if (authHeader[0].equals("Basic")) {
-
-
             String logData = new String(Base64.getDecoder().decode(authHeader[1]));
             System.out.println("logData: " + logData);
-
 
             if (authorization.checkUser(logData)) {
 
                 Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
                 headersFrame.headers().status("202");
                 headersFrame.headers().add("accesstoken", authorization.generateAccessJWT());
-                headersFrame.headers().add("refreshtoken", authorization.generateRefreshJWT(true));
+                headersFrame.headers().add("refreshtoken", authorization.generateRefreshJWT(logData.split(":")[2]));
                 headersFrame.headers().addInt("content-length", CONTENT.length);
-                ctx.writeAndFlush(headersFrame);
-
-
-
-//                Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-//                headersFrame.headers().status("200");
-//                headersFrame.headers().add("server", "netty_copy").add("accessToken", authorization.generateAccessJWT()).add("refreshToken", authorization.generateRefreshJWT(false));
-//                headersFrame.headers().addInt("content-length", CONTENT.length);
-//                ctx.write(headersFrame);
-//                ctx.writeAndFlush(new DefaultHttp3DataFrame(
-//                        Unpooled.wrappedBuffer(CONTENT)));
-//
-//
-//                ReferenceCountUtil.release(frame);
-
+                ctx.writeAndFlush(headersFrame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
 
             } else {
 
@@ -68,10 +53,10 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
                     Http3HeadersFrame headersFrame2 = new DefaultHttp3HeadersFrame();
                     headersFrame2.headers().status("202");
                     headersFrame2.headers().add("accesstoken", authorization.generateAccessJWT());
-                    headersFrame2.headers().add("refreshtoken", authorization.generateRefreshJWT(true));
+                    headersFrame2.headers().add("refreshtoken", authorization.generateRefreshJWT(logData.split(":")[2]));
                     headersFrame2.headers().addInt("content-length", CONTENT.length);
                     System.out.println(headersFrame2.headers());
-                    ctx.writeAndFlush(headersFrame2);
+                    ctx.writeAndFlush(headersFrame2).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
 
                 } else {
 
@@ -79,28 +64,21 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
                     Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
                     headersFrame.headers().status("401");
                     headersFrame.headers().add("info", "User not found, do u wanna sign up?");
-//                    headersFrame.headers().add("server", "netty_copy");
                     headersFrame.headers().addInt("content-length", CONTENT.length);
-                    ctx.writeAndFlush(headersFrame);
-//                ctx.writeAndFlush(new DefaultHttp3DataFrame(
-//                        Unpooled.wrappedBuffer(CONTENT)));
+                    ctx.writeAndFlush(headersFrame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
                 }
-
                 ReferenceCountUtil.release(frame);
             }
-
-
         } else if (authHeader[0].equals("Bearer")) {
             if (authorization.validateJWT(authHeader[1])) {
                 if (authorization.getJWTType(authHeader[1]).equals("refreshtoken")) {
-
                     System.out.println("Got valid refreshtoken");
                     Http3HeadersFrame headersFrame2 = new DefaultHttp3HeadersFrame();
                     headersFrame2.headers().status("202");
                     headersFrame2.headers().add("accesstoken", authorization.generateAccessJWT());
                     headersFrame2.headers().add("refreshtoken", authorization.generateRefereshJWTFromJWT(authHeader[1]));
                     headersFrame2.headers().addInt("content-length", CONTENT.length);
-                    ctx.writeAndFlush(headersFrame2);
+                    ctx.writeAndFlush(headersFrame2).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
                     System.out.println("Server sent new at and rt");
                 } else  {
                     System.out.println("Got valid accesstoken");
@@ -109,7 +87,7 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
                     headersFrame.headers().add("info", "accessed");
                     headersFrame.headers().add("accesstoken", authorization.generateAccessJWT());
                     headersFrame.headers().addInt("content-length", CONTENT.length);
-                    ctx.writeAndFlush(headersFrame);
+                    ctx.writeAndFlush(headersFrame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
                 }
             } else if(frame.headers().get("info")!=null && frame.headers().get("info").toString().equals("refreshToken")){
                 System.out.println("refresh token is not valid");
@@ -117,20 +95,16 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
                 headersFrame.headers().status("401");
                 headersFrame.headers().add("info", "refreshTokenExpired");
                 headersFrame.headers().addInt("content-length", CONTENT.length);
-                ctx.writeAndFlush(headersFrame);
+                ctx.writeAndFlush(headersFrame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
             } else {
                 System.out.println("access token is not valid");
                 Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
                 headersFrame.headers().status("401");
                 headersFrame.headers().add("info", "accessTokenExpired");
                 headersFrame.headers().addInt("content-length", CONTENT.length);
-                ctx.writeAndFlush(headersFrame);
-
+                ctx.writeAndFlush(headersFrame).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
             }
-
-
         }
-
         ReferenceCountUtil.release(frame);
     }
 
@@ -142,18 +116,8 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
 
     }
 
-
     @Override
     protected void channelInputClosed(ChannelHandlerContext ctx) {
-//        Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
-//        headersFrame.headers().status("200");
-//        headersFrame.headers().add("server", "netty_copy");
-//        headersFrame.headers().addInt("content-length", CONTENT.length);
-//        ctx.write(headersFrame);
-//        ctx.writeAndFlush(new DefaultHttp3DataFrame(
-//                        Unpooled.wrappedBuffer(CONTENT)))
-//                .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
-
     }
 
     @Override
