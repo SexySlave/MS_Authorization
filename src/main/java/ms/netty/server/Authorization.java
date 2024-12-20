@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class Authorization {
-    Configuration cfg;
+
     SessionFactory sessionFactory;
     KeyPair keyPair;
     RSAPublicKey publicKey;
@@ -153,7 +153,6 @@ public class Authorization {
     }
 
     private int getRefreshTokenVersion(int tokenUUID) {
-        SessionFactory sessionFactory = cfg.buildSessionFactory();
         Session session = sessionFactory.openSession();
         int JWTversion = session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID =:i", int.class).setParameter("i", tokenUUID).getSingleResultOrNull();
 
@@ -163,16 +162,16 @@ public class Authorization {
         return JWTversion;
     }
 
-    private int getRefereshTokenUUID(int userId) {
-        SessionFactory sessionFactory = cfg.buildSessionFactory();
-        Session session = sessionFactory.openSession();
-        int JWTUUID = session.createQuery("SELECT refreshTokenUUID from UsersDefault where id =:i", int.class).setParameter("i", userId).getSingleResultOrNull();
-
-
-        session.close();
-        sessionFactory.close();
-        return JWTUUID;
-    }
+//    private int getRefereshTokenUUID(int userId) {
+//        SessionFactory sessionFactory = cfg.buildSessionFactory();
+//        Session session = sessionFactory.openSession();
+//        int JWTUUID = session.createQuery("SELECT refreshTokenUUID from UsersDefault where id =:i", int.class).setParameter("i", userId).getSingleResultOrNull();
+//
+//
+//        session.close();
+//        sessionFactory.close();
+//        return JWTUUID;
+//    }
 
     private void updateRefreshTokenVersion(int userId, String MacAddress) {
         Session session = sessionFactory.openSession();
