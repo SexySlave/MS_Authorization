@@ -39,7 +39,7 @@ public final class Http3ClientExample {
 
     public static void main(String... args) throws Exception {
 
-        //yBasicConfigurator.configure();
+        BasicConfigurator.configure();
 
         NioEventLoopGroup group = new NioEventLoopGroup(1);
 

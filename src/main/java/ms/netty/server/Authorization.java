@@ -11,6 +11,7 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
@@ -41,12 +42,15 @@ public class Authorization {
     public Boolean checkUser(String logData) {
         try {
             Session session = sessionFactory.openSession();
-            UsersDefault user = session.createQuery("from UsersDefault where login = :l and password =:p", UsersDefault.class).setParameter("l", logData.split(":")[0]).setParameter("p", logData.split(":")[1]).getSingleResultOrNull();
+            String[] logDataParts = logData.split(":");
+            UsersDefault user = session.createQuery("from UsersDefault where login = :l", UsersDefault.class)
+                    .setParameter("l", logDataParts[0])
+                    .getSingleResultOrNull();
 
             session.close();
             System.out.println("session is open" + session.isOpen());
 
-            if (user != null) {
+            if (user != null && BCrypt.checkpw(logDataParts[1], user.getPassword())) {
                 this.user = user;
                 System.out.println("ist null");
                 System.out.println(user.getLogin());
@@ -56,8 +60,6 @@ public class Authorization {
                 System.out.println("is null");
                 return false;
             }
-
-
         } catch (Exception ex) {
             ex.printStackTrace();
             return false;
@@ -68,16 +70,18 @@ public class Authorization {
         Session session = sessionFactory.openSession();
         try {
             session.getTransaction().begin();
-            UsersDefault newUser = new UsersDefault(logData.split(":")[0], logData.split(":")[1]);
+            String[] logDataParts = logData.split(":");
+            String hashedPassword = BCrypt.hashpw(logDataParts[1], BCrypt.gensalt());
+            UsersDefault newUser = new UsersDefault(logDataParts[0], hashedPassword);
             session.persist(newUser);
             session.getTransaction().commit();
             session.getTransaction().begin();
-            RefreshTokens newRefreshToken = new RefreshTokens(newUser.getId(), null, 0, logData.split(":")[2], newUser);
+            RefreshTokens newRefreshToken = new RefreshTokens(newUser.getId(), null, 0, logDataParts[2], newUser);
             session.persist(newRefreshToken);
             session.getTransaction().commit();
             user = newUser;
             user.getRefreshTokens().add(newRefreshToken);
-        } catch (Exception e){
+        } catch (Exception e) {
             session.getTransaction().rollback();
         } finally {
             session.close();

@@ -96,7 +96,8 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
                 Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
                 frame.headers().method("GET").path("/")
                         .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
-                        .scheme("https").add("authorization", "Bearer "+ at);
+                        .scheme("https").add("authorization", "Bearer "+ at)
+                        .add("info", "refreshToken");;
                 ctx.writeAndFlush(frame);
 
             }
