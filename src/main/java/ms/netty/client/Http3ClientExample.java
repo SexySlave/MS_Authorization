@@ -62,7 +62,7 @@ public final class Http3ClientExample {
 
             QuicChannel quicChannel = QuicChannel.newBootstrap(channel)
                     .handler(new Http3ClientConnectionHandler())
-                    .remoteAddress(new InetSocketAddress("89.208.207.43", 1111))
+                    .remoteAddress(new InetSocketAddress("127.0.0.1", 9999))
                     .connect()
                     .get();
 
@@ -71,19 +71,6 @@ public final class Http3ClientExample {
                     new ClientChannelHandler(quicChannel, null));
             quicStreamChannelFuture.sync();
             QuicStreamChannel streamChannel = quicStreamChannelFuture.getNow();
-
-            // Write the Header frame and send the FIN to mark the end of the request.
-            // After this its not possible anymore to write any more data.
-
-
-//            Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
-//            System.out.println(NetUtil.LOCALHOST4.getHostAddress());
-//            frame.headers().method("GET").path("/")
-//                    .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + Http3ServerExample.PORT)
-//                    .scheme("https").add("req", "NOTE");
-//            streamChannel.writeAndFlush(frame)
-//                    .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT).sync();
-
 
             // Wait for the stream channel and quic channel to be closed (this will happen after we received the FIN).
             // After this is done we will close the underlying datagram channel.

@@ -23,12 +23,12 @@ import java.util.UUID;
 
 public class Authorization {
 
-    SessionFactory sessionFactory;
-    KeyPair keyPair;
-    RSAPublicKey publicKey;
-    RSAPrivateKey privateKey;
-    Algorithm algorithm;
-    UsersDefault user;
+    private final SessionFactory sessionFactory;
+    private final KeyPair keyPair;
+    private final RSAPublicKey publicKey;
+    private final RSAPrivateKey privateKey;
+    private final Algorithm algorithm;
+    private UsersDefault user;
 
     public Authorization(KeyPair keyPair, SessionFactory sessionFactory) {
         this.keyPair = keyPair;
@@ -38,26 +38,17 @@ public class Authorization {
         this.sessionFactory = sessionFactory;
     }
 
-
     public Boolean checkUser(String logData) {
-        try {
-            Session session = sessionFactory.openSession();
+        try (Session session = sessionFactory.openSession()) {
             String[] logDataParts = logData.split(":");
             UsersDefault user = session.createQuery("from UsersDefault where login = :l", UsersDefault.class)
                     .setParameter("l", logDataParts[0])
                     .getSingleResultOrNull();
 
-            session.close();
-            System.out.println("session is open" + session.isOpen());
-
             if (user != null && BCrypt.checkpw(logDataParts[1], user.getPassword())) {
                 this.user = user;
-                System.out.println("ist null");
-                System.out.println(user.getLogin());
-                System.out.println(user.getPassword());
                 return true;
             } else {
-                System.out.println("is null");
                 return false;
             }
         } catch (Exception ex) {
@@ -67,32 +58,33 @@ public class Authorization {
     }
 
     public void registerUser(String logData) {
-        Session session = sessionFactory.openSession();
-        try {
-            session.getTransaction().begin();
-            String[] logDataParts = logData.split(":");
-            String hashedPassword = BCrypt.hashpw(logDataParts[1], BCrypt.gensalt());
-            UsersDefault newUser = new UsersDefault(logDataParts[0], hashedPassword);
-            session.persist(newUser);
-            session.getTransaction().commit();
-            session.getTransaction().begin();
-            RefreshTokens newRefreshToken = new RefreshTokens(newUser.getId(), null, 0, logDataParts[2], newUser);
-            session.persist(newRefreshToken);
-            session.getTransaction().commit();
-            user = newUser;
-            user.getRefreshTokens().add(newRefreshToken);
-        } catch (Exception e) {
-            session.getTransaction().rollback();
-        } finally {
-            session.close();
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                String[] logDataParts = logData.split(":");
+                String hashedPassword = BCrypt.hashpw(logDataParts[1], BCrypt.gensalt());
+                UsersDefault newUser = new UsersDefault(logDataParts[0], hashedPassword);
+                session.persist(newUser);
+                transaction.commit();
+
+                transaction = session.beginTransaction();
+                RefreshTokens newRefreshToken = new RefreshTokens(newUser.getId(), null, 0, logDataParts[2], newUser);
+                session.persist(newRefreshToken);
+                transaction.commit();
+
+                user = newUser;
+                user.getRefreshTokens().add(newRefreshToken);
+            } catch (Exception e) {
+                transaction.rollback();
+                e.printStackTrace();
+            }
         }
     }
 
-    public boolean validateJWT(String jwtToken) throws NoSuchAlgorithmException {
+    public boolean validateJWT(String jwtToken) {
         JWTVerifier verifier = JWT.require(algorithm).withIssuer("MS_AUTHORIZATION").build();
         try {
-            DecodedJWT decodedJWT = verifier.verify(jwtToken);
-            System.out.println(decodedJWT.getPayload());
+            verifier.verify(jwtToken);
             return true;
         } catch (JWTVerificationException e) {
             System.out.println(e.getMessage());
@@ -110,158 +102,133 @@ public class Authorization {
         }
     }
 
-
     public String generateAccessJWT() {
-        String jwtAccessToken = JWT.create().withIssuer("MS_AUTHORIZATION").withSubject("MS_AUTHORIZATION_user").withClaim("type", "accesstoken")
-                //.withClaim("version", "15647839049гоалвд234")
-                .withIssuedAt(new Date()).withExpiresAt(new Date(System.currentTimeMillis() + 60000L * 15)).withJWTId(UUID.randomUUID().toString()).withNotBefore(new Date(System.currentTimeMillis() - 1000L)).sign(algorithm);
-        return jwtAccessToken;
+        return JWT.create()
+                .withIssuer("MS_AUTHORIZATION")
+                .withSubject("MS_AUTHORIZATION_user")
+                .withClaim("type", "accesstoken")
+                .withIssuedAt(new Date())
+                .withExpiresAt(new Date(System.currentTimeMillis() + 60000L * 15)) // 15 min
+                .withJWTId(UUID.randomUUID().toString())
+                .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
+                .sign(algorithm);
     }
 
     public String generateRefreshJWT(String MACAddress) {
-
         updateRefreshTokenVersion(user.getId(), MACAddress);
         updateInternalUserRefreshTokens();
 
-        String jwtRefreshToken = JWT.create()
+        return JWT.create()
                 .withIssuer("MS_AUTHORIZATION")
                 .withSubject("MS_AUTHORIZATION_user")
                 .withClaim("type", "refreshtoken")
                 .withClaim("version", user.getRefreshTokenByMacAddress(MACAddress).getTokenVersion())
                 .withClaim("refreshtokenuuid", user.getRefreshTokenByMacAddress(MACAddress).getTokenUUID())
                 .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 60)) // 60 days
-                .withJWTId(UUID.randomUUID().toString()).withNotBefore(new Date(System.currentTimeMillis() - 1000L)).sign(algorithm);
-        return jwtRefreshToken;
+                .withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 15)) // 60 days
+                .withJWTId(UUID.randomUUID().toString())
+                .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
+                .sign(algorithm);
     }
 
-    public String generateRefereshJWTFromJWT(String refreshJWT) {  // using only when obtaining refreshtoken
+    public String generateRefereshJWTFromJWT(String refreshJWT) {
         JWTVerifier verifier = JWT.require(algorithm).withIssuer("MS_AUTHORIZATION").build();
-
         int refreshUUID = verifier.verify(refreshJWT).getClaim("refreshtokenuuid").asInt();
-
 
         updateRefreshTokenVersionByUUID(refreshUUID);
         updateInternalUserByRefreshUUID(refreshUUID);
 
-        String jwtRefreshToken = JWT.create()
+        return JWT.create()
                 .withIssuer("MS_AUTHORIZATION")
                 .withSubject("MS_AUTHORIZATION_user")
                 .withClaim("type", "refreshtokenuuid")
                 .withClaim("version", getRefreshTokenVersion(refreshUUID))
                 .withClaim("refreshtokenuuid", refreshUUID)
-                .withIssuedAt(new Date()).withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 60)) // 60 days
-                .withJWTId(UUID.randomUUID().toString()).withNotBefore(new Date(System.currentTimeMillis() - 1000L)).sign(algorithm);
-        return jwtRefreshToken;
-
+                .withIssuedAt(new Date())
+                .withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 60)) // 60 days
+                .withJWTId(UUID.randomUUID().toString())
+                .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
+                .sign(algorithm);
     }
 
     private int getRefreshTokenVersion(int tokenUUID) {
-        Session session = sessionFactory.openSession();
-        int JWTversion = session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID =:i", int.class).setParameter("i", tokenUUID).getSingleResultOrNull();
-
-
-        session.close();
-        sessionFactory.close();
-        return JWTversion;
+        try (Session session = sessionFactory.openSession()) {
+            return session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID = :i", int.class)
+                    .setParameter("i", tokenUUID)
+                    .getSingleResultOrNull();
+        }
     }
 
-//    private int getRefereshTokenUUID(int userId) {
-//        SessionFactory sessionFactory = cfg.buildSessionFactory();
-//        Session session = sessionFactory.openSession();
-//        int JWTUUID = session.createQuery("SELECT refreshTokenUUID from UsersDefault where id =:i", int.class).setParameter("i", userId).getSingleResultOrNull();
-//
-//
-//        session.close();
-//        sessionFactory.close();
-//        return JWTUUID;
-//    }
-
     private void updateRefreshTokenVersion(int userId, String MacAddress) {
-        Session session = sessionFactory.openSession();
-        Transaction transaction = session.beginTransaction();
-        try {
-            session.createMutationQuery("update RefreshTokens set tokenVersion = :v where user_id = :i and mac_address = : mac").setParameter("mac", MacAddress).setParameter("i", userId).setParameter("v", (session.createQuery("SELECT tokenVersion from RefreshTokens where user_id =:i", int.class).setParameter("i", userId).getSingleResultOrNull()) + 1).executeUpdate();
-            transaction.commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-            transaction.rollback();
-        } finally {
-            session.close();
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                int newVersion = session.createQuery("SELECT tokenVersion from RefreshTokens where user_id = :i", int.class)
+                        .setParameter("i", userId)
+                        .getSingleResultOrNull() + 1;
+                session.createMutationQuery("update RefreshTokens set tokenVersion = :v where user_id = :i and mac_address = :mac")
+                        .setParameter("mac", MacAddress)
+                        .setParameter("i", userId)
+                        .setParameter("v", newVersion)
+                        .executeUpdate();
+                transaction.commit();
+            } catch (Exception e) {
+                transaction.rollback();
+                e.printStackTrace();
+            }
         }
     }
 
     private void updateRefreshTokenVersionByUUID(int refreshTokenUUID) {
-        Session session = sessionFactory.openSession();
-        Transaction transaction = session.beginTransaction();
-        try {
-            session.createMutationQuery("update RefreshTokens set tokenVersion = :v where tokenUUID = :i").setParameter("i", refreshTokenUUID).setParameter("v", (session.createQuery("SELECT JWTversion from UsersDefault where refreshtokenUUID =:i", int.class).setParameter("i", refreshTokenUUID).getSingleResultOrNull()) + 1).executeUpdate();
-            transaction.commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-            transaction.rollback();
-        } finally {
-            session.close();
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                int newVersion = session.createQuery("SELECT JWTversion from UsersDefault where refreshtokenUUID = :i", int.class)
+                        .setParameter("i", refreshTokenUUID)
+                        .getSingleResultOrNull() + 1;
+                session.createMutationQuery("update RefreshTokens set tokenVersion = :v where tokenUUID = :i")
+                        .setParameter("i", refreshTokenUUID)
+                        .setParameter("v", newVersion)
+                        .executeUpdate();
+                transaction.commit();
+            } catch (Exception e) {
+                transaction.rollback();
+                e.printStackTrace();
+            }
         }
-
-
     }
 
     private void updateInternalUserByRefreshUUID(int refreshTokenUUID) {
-        Session session = sessionFactory.openSession();
-        try {
-
-
-
-            UsersDefault user = session.createQuery("from UsersDefault where id =:i", UsersDefault.class).setParameter("i",
-                    session.createQuery("FROM RefreshTokens WHERE tokenUUID =: UUID", RefreshTokens.class).setParameter("UUID", refreshTokenUUID).getSingleResultOrNull().getUser_id()
-            ).getSingleResultOrNull();
-
-
-
-            //sessionFactory.close();
+        try (Session session = sessionFactory.openSession()) {
+            UsersDefault user = session.createQuery("from UsersDefault where id = :i", UsersDefault.class)
+                    .setParameter("i", session.createQuery("FROM RefreshTokens WHERE tokenUUID = :UUID", RefreshTokens.class)
+                            .setParameter("UUID", refreshTokenUUID)
+                            .getSingleResultOrNull()
+                            .getUser_id())
+                    .getSingleResultOrNull();
 
             if (user != null) {
                 this.user = user;
-                System.out.println("ist null");
-                System.out.println(user.getLogin());
-                System.out.println(user.getPassword());
-
-
-            } else {
-                System.out.println("is null");
-
             }
-
-
         } catch (Exception ex) {
             ex.printStackTrace();
             throw new RuntimeException(ex);
-
-
-        } finally {
-            session.close();
         }
     }
 
-    private void updateInternalUserRefreshTokens(){
-       Session session = sessionFactory.openSession();
-        try {
-            session.getTransaction().begin();
-            List<RefreshTokens> refreshTokens = session.createQuery("FROM RefreshTokens WHERE user_id =: id", RefreshTokens.class).setParameter("id", user.getId()).getResultList();
-            session.getTransaction().commit();
-            user.setRefreshTokens(refreshTokens);
-        } catch (Exception e){
-            session.getTransaction().rollback();
-        } finally {
-            session.close();
+    private void updateInternalUserRefreshTokens() {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try {
+                List<RefreshTokens> refreshTokens = session.createQuery("FROM RefreshTokens WHERE user_id = :id", RefreshTokens.class)
+                        .setParameter("id", user.getId())
+                        .getResultList();
+                user.setRefreshTokens(refreshTokens);
+                transaction.commit();
+            } catch (Exception e) {
+                transaction.rollback();
+                e.printStackTrace();
+            }
         }
     }
-
-
-
-
-
 }
-
-

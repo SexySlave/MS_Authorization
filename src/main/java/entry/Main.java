@@ -1,6 +1,7 @@
 package entry;
 
 import ms.netty.client.Http3ClientExample;
+import ms.netty.server.APIProvider;
 import ms.netty_old.server.Authorization;
 
 import java.net.InetAddress;
@@ -22,6 +23,11 @@ public class Main {
         }
         String macAddress = String.join("-", hexadecimal);
         System.out.println(macAddress);
+
+
+        APIProvider.invokeSecureOperation2();
+
+
 
 
         // Добавить отправку мак-адресса, добавить его в таблицу с жвт, настроить авторизацию без обращения к юзеру
