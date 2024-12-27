@@ -1,3 +1,5 @@
+package ms.netty.server;
+
 /*
  * Copyright 2020 The Netty Project
  *
@@ -13,101 +15,94 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package ms.netty.debug;
+
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
-import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
+import io.netty.incubator.codec.http3.Http3;
+import io.netty.incubator.codec.http3.Http3ServerConnectionHandler;
 import io.netty.incubator.codec.quic.*;
 import io.netty.util.CharsetUtil;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
+import ms.netty.debug.Handler1;
+import ms.netty.debug.Handler2;
+import ms.netty.server.Hibernate.RefreshTokens;
+import ms.netty.server.Hibernate.UsersDefault;
+import ms.netty.server.handlers.*;
+import org.apache.log4j.BasicConfigurator;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
 
 import java.net.InetSocketAddress;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeUnit;
 
+
 public final class SERVEX {
-
-    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(SERVEX.class);
-
+    private static final byte[] CONTENT = "Hello World!\r\n".getBytes(CharsetUtil.US_ASCII);
+    static final int PORT = 9999;
+    public static KeyPair keyPair = generateRSAKeyPair();
+    public  static SessionFactory sessionFactory;
     private SERVEX() { }
 
-    public static void main(String[] args) throws Exception {
-        SelfSignedCertificate selfSignedCertificate = new SelfSignedCertificate();
-        QuicSslContext context = QuicSslContextBuilder.forServer(
-                        selfSignedCertificate.privateKey(), null, selfSignedCertificate.certificate())
-                .applicationProtocols("http/0.9").build();
+    public static void main(String... args) throws Exception {
+
+        BasicConfigurator.configure();
+
+        Configuration cfg = new Configuration();
+        cfg.setProperty("hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver");
+        cfg.setProperty("hibernate.connection.url", "jdbc:mysql://localhost:3306/ms_authorization");
+        cfg.setProperty("hibernate.connection.username", "root");
+        cfg.setProperty("hibernate.connection.password", "");
+        cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        cfg.addAnnotatedClass(UsersDefault.class);
+        cfg.addAnnotatedClass(RefreshTokens.class);
+        sessionFactory = cfg.buildSessionFactory();
+
+        int port;
+
+        if (args.length == 1) {
+            port = Integer.parseInt(args[0]);
+        } else {
+            port = PORT;
+        }
+
         NioEventLoopGroup group = new NioEventLoopGroup(1);
-        ChannelHandler codec = new QuicServerCodecBuilder().sslContext(context)
-                .maxIdleTimeout(5000, TimeUnit.MILLISECONDS)
-                // Configure some limits for the maximal number of streams (and the data) that we want to handle.
+        SelfSignedCertificate cert = new SelfSignedCertificate();
+
+        QuicSslContext sslContext = QuicSslContextBuilder.forServer(cert.key(), null , cert.cert())
+                .applicationProtocols(Http3.supportedApplicationProtocols()).build();
+        ChannelHandler codec = Http3.newQuicServerCodecBuilder()
+                .sslContext(sslContext)
+                .maxIdleTimeout(100000, TimeUnit.MILLISECONDS)
                 .initialMaxData(10000000)
                 .initialMaxStreamDataBidirectionalLocal(1000000)
                 .initialMaxStreamDataBidirectionalRemote(1000000)
                 .initialMaxStreamsBidirectional(100)
-                .initialMaxStreamsUnidirectional(100)
-                .activeMigration(true)
-
-                // Setup a token handler. In a production system you would want to implement and provide your custom
-                // one.
                 .tokenHandler(InsecureQuicTokenHandler.INSTANCE)
-                // ChannelHandler that is added into QuicChannel pipeline.
-                .handler(new ChannelInboundHandlerAdapter() {
+                .handler(new ChannelInitializer<QuicChannel>() {
                     @Override
-                    public void channelActive(ChannelHandlerContext ctx) {
-                        System.out.println("fdfdf");
-                        QuicChannel channel = (QuicChannel) ctx.channel();
-                        // Create streams etc..
-                    }
-
-                    @Override
-                    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-                        super.channelRegistered(ctx);
-                        System.out.println("hfbnmkl,ds;.f");
-                    }
-
-                    public void channelInactive(ChannelHandlerContext ctx) {
-                        System.out.println("fdfdf");
-                        ((QuicChannel) ctx.channel()).collectStats().addListener(f -> {
-                            if (f.isSuccess()) {
-                                LOGGER.info("Connection closed: {}", f.getNow());
-                            }
-                        });
-                    }
-
-                    @Override
-                    public boolean isSharable() {
-                        System.out.println("fdfdf");
-                        return true;
-                    }
-                })
-                .streamHandler(new ChannelInitializer<QuicStreamChannel>() {
-                    @Override
-                    protected void initChannel(QuicStreamChannel ch)  {
-                        System.out.println("fdfdf");
-                        // Add a LineBasedFrameDecoder here as we just want to do some simple HTTP 0.9 handling.
-                        ch.pipeline().addLast(new LineBasedFrameDecoder(1024))
-                                .addLast(new ChannelInboundHandlerAdapter() {
+                    protected void initChannel(QuicChannel ch) {
+                        // Called for each connection
+                        ch.pipeline().addLast(new Http3ServerConnectionHandler(
+                                new ChannelInitializer<QuicStreamChannel>() {
+                                    // Called for each request-stream,
                                     @Override
-                                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                                        System.out.println("fdfdf");
-                                        ByteBuf byteBuf = (ByteBuf) msg;
-                                        try {
-                                            if (byteBuf.toString(CharsetUtil.US_ASCII).trim().equals("GET /")) {
-                                                ByteBuf buffer = ctx.alloc().directBuffer();
-                                                buffer.writeCharSequence("Hello World!\r\n", CharsetUtil.US_ASCII);
-                                                // Write the buffer and shutdown the output by writing a FIN.
-                                                ctx.writeAndFlush(buffer).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
-                                            }
-                                        } finally {
-                                            byteBuf.release();
-                                        }
+                                    protected void initChannel(QuicStreamChannel ch) {
+                                        ch.pipeline().addLast(new Handler1());
+//                                        ch.pipeline().addLast(new AttackShieldHandler());
+//                                        ch.pipeline().addLast(new RouteHandler());
+//                                        //ch.pipeline().addLast(new AuthorizationHandler(keyPair, sessionFactory));
+//                                        //ch.pipeline().addLast(new ServerChannelHandler(keyPair, sessionFactory));
+//                                        //ch.pipeline().addLast(new MainHandler());
                                     }
-                                });
+                                }));
                     }
                 }).build();
         try {
@@ -115,10 +110,22 @@ public final class SERVEX {
             Channel channel = bs.group(group)
                     .channel(NioDatagramChannel.class)
                     .handler(codec)
-                    .bind(new InetSocketAddress(9999)).sync().channel();
+                    .bind(new InetSocketAddress(PORT)).sync().channel();
+            System.out.println(channel.localAddress() +" "+ PORT);
             channel.closeFuture().sync();
         } finally {
             group.shutdownGracefully();
         }
+    }
+
+    public static KeyPair generateRSAKeyPair()   {
+        KeyPairGenerator keyPairGenerator = null;
+        try {
+            keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        keyPairGenerator.initialize(512); // Размер ключа: 2048 бит
+        return keyPairGenerator.generateKeyPair();
     }
 }

@@ -30,6 +30,7 @@ import io.netty.incubator.codec.quic.*;
 import io.netty.util.CharsetUtil;
 import ms.netty.server.Hibernate.RefreshTokens;
 import ms.netty.server.Hibernate.UsersDefault;
+import ms.netty.server.handlers.*;
 import org.apache.log4j.BasicConfigurator;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -44,8 +45,8 @@ import java.util.concurrent.TimeUnit;
 public final class Http3ServerExample {
     private static final byte[] CONTENT = "Hello World!\r\n".getBytes(CharsetUtil.US_ASCII);
     static final int PORT = 9999;
-    static KeyPair keyPair = generateRSAKeyPair();
-    private static SessionFactory sessionFactory;
+    public static KeyPair keyPair = generateRSAKeyPair();
+    public  static SessionFactory sessionFactory;
     private Http3ServerExample() { }
 
     public static void main(String... args) throws Exception {
@@ -92,7 +93,11 @@ public final class Http3ServerExample {
                                     // Called for each request-stream,
                                     @Override
                                     protected void initChannel(QuicStreamChannel ch) {
-                                        ch.pipeline().addLast(new ServerChannelHandler(keyPair, sessionFactory));
+                                        ch.pipeline().addLast(new AttackShieldHandler());
+                                        ch.pipeline().addLast(new RouteHandler());
+                                        //ch.pipeline().addLast(new AuthorizationHandler(keyPair, sessionFactory));
+                                        //ch.pipeline().addLast(new ServerChannelHandler(keyPair, sessionFactory));
+                                        //ch.pipeline().addLast(new MainHandler());
                                     }
                                 }));
                     }

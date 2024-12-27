@@ -70,7 +70,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
                 System.out.println("Encoding sensitive data...");
 
                 Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
-                frame.headers().method("GET").path("/")
+                frame.headers().method("GET").path("/secure/api-all")
                         .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                         .scheme("https").add("authorization", "Basic " + logDataEncoded);
                 ctx.writeAndFlush(frame);
@@ -78,7 +78,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
                 System.out.println("Tokens are detected. Trying to connect...");
 
                 Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
-                frame.headers().method("GET").path("/")
+                frame.headers().method("GET").path("/secure/api-all")
                         .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                         .scheme("https").add("authorization", "Bearer " + at)
                         .add("info", "refreshToken");
@@ -113,7 +113,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
             reader.close();
 
             Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
-            frame1.headers().method("GET").path("/")
+            frame1.headers().method("GET").path("/secure/api-all")
                     .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                     .scheme("https")
                     .add("authorization", "Bearer " + rt)
@@ -128,7 +128,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
             if (answ.equalsIgnoreCase("y")) {
                 System.out.println("registration...");
                 Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
-                frame1.headers().method("GET").path("/")
+                frame1.headers().method("GET").path("/secure/api-all")
                         .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                         .scheme("https")
                         .add("authorization", "Basic " + logDataEncoded)
@@ -159,7 +159,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
         System.out.println("Encoding sensitive data...");
 
         Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
-        frame1.headers().method("GET").path("/")
+        frame1.headers().method("GET").path("/secure/api-all")
                 .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                 .scheme("https").add("authorization", "Basic " + logDataEncoded);
         createNewChannelAndSendRequest(quicChannel, frame1);
