@@ -21,18 +21,18 @@ import java.util.Base64;
 import java.util.Objects;
 import java.util.Scanner;
 
-public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
+public class ClientChannelHandler_old extends Http3RequestStreamInboundHandler {
 
     private final UIHandler handler = new UIHandler();
     private final Http3HeadersFrame http3HeadersFrame;
     private final QuicChannel quicChannel;
-    private final Logger log = Logger.getLogger(ClientChannelHandler.class);
+    private final Logger log = Logger.getLogger(ClientChannelHandler_old.class);
 
     private String logData = "lolipopssss77121ww22214433231233221112221133444337ss:qwerty12223";
     private final String logDataEncoded;
     private final String macAddress;
 
-    public ClientChannelHandler(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws UnknownHostException, SocketException {
+    public ClientChannelHandler_old(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws UnknownHostException, SocketException {
         this.quicChannel = quicChannel;
         this.http3HeadersFrame = http3HeadersFrame;
 
@@ -178,7 +178,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
 
     public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException, SocketException, UnknownHostException {
         log.debug("Creating new quicChannel");
-        Http3.newRequestStream(quicChannel, new ClientChannelHandler(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();
+        Http3.newRequestStream(quicChannel, new ClientChannelHandler_old(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();
     }
 
     public static class UIHandler {

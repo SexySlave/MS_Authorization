@@ -76,7 +76,7 @@ public class ServerChannelHandler extends Http3RequestStreamInboundHandler {
                     Http3HeadersFrame headersFrame2 = new DefaultHttp3HeadersFrame();
                     headersFrame2.headers().status("202");
                     headersFrame2.headers().add("accesstoken", authorization.generateAccessJWT());
-                    headersFrame2.headers().add("refreshtoken", authorization.generateRefereshJWTFromJWT(authHeader[1]));
+                    headersFrame2.headers().add("refreshtoken", authorization.generateRefreshJWTFromJWT(authHeader[1]));
                     //headersFrame2.headers().addInt("content-length", CONTENT.length);
                     ctx.writeAndFlush(headersFrame2).addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);;
                     System.out.println("Server sent new at and rt");

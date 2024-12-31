@@ -131,7 +131,7 @@ public class Authorization {
                 .sign(algorithm);
     }
 
-    public String generateRefereshJWTFromJWT(String refreshJWT) {
+    public String generateRefreshJWTFromJWT(String refreshJWT) {
         JWTVerifier verifier = JWT.require(algorithm).withIssuer("MS_AUTHORIZATION").build();
         int refreshUUID = verifier.verify(refreshJWT).getClaim("refreshtokenuuid").asInt();
 

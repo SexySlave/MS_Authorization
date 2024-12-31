@@ -1,14 +1,10 @@
 package ms.netty.server.handlers;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.*;
 import io.netty.incubator.codec.http3.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 public class RouteHandler extends Http3RequestStreamInboundHandler {
     private final Map<String, Http3RequestStreamInboundHandler[]> routes = new HashMap<>();
@@ -17,7 +13,7 @@ public class RouteHandler extends Http3RequestStreamInboundHandler {
 
     public RouteHandler() {
         // Определяем маршруты
-        routes.put("/secure/api-all", new Http3RequestStreamInboundHandler[] {new AuthorizationHandler(), new ApiAllHandler()});
+        routes.put("/secure/api-all", new Http3RequestStreamInboundHandler[] {new AuthHandler(), new ApiAllHandler()});
         routes.put("/api",new Http3RequestStreamInboundHandler[] { new ApiHandler()});
         routes.put("/", new Http3RequestStreamInboundHandler[] {new MainHandler()});
     }
