@@ -13,6 +13,7 @@ public class RouteHandler extends Http3RequestStreamInboundHandler {
 
     public RouteHandler() {
         // Определяем маршруты
+        routes.put("/secure", new Http3RequestStreamInboundHandler[] {new SecureHandler()});
         routes.put("/secure/api-all", new Http3RequestStreamInboundHandler[] {new AuthHandler(), new ApiAllHandler()});
         routes.put("/api",new Http3RequestStreamInboundHandler[] { new ApiHandler()});
         routes.put("/", new Http3RequestStreamInboundHandler[] {new MainHandler()});

@@ -12,7 +12,7 @@ import ms.netty.server.Http3ServerExample;
 
 import java.util.Base64;
 
-public class AuthHandler extends Http3RequestStreamInboundHandler {
+public class SecureHandler extends Http3RequestStreamInboundHandler {
 
     Authorization authorization = new Authorization(Http3ServerExample.keyPair, Http3ServerExample.sessionFactory);
 
@@ -46,10 +46,7 @@ public class AuthHandler extends Http3RequestStreamInboundHandler {
             }
         } else if (authType.equals(BEARER)) {
             if (authorization.validateJWT(authData)) {
-                if (authorization.getJWTType(authData).equals(ACCESSTOKEN)){
-                    ctx.fireChannelRead(frame);
-                    isAuthorized = true;
-                } else if (authorization.getJWTType(authData).equals(REFRESHTOKEN)){
+                 if (authorization.getJWTType(authData).equals(REFRESHTOKEN)){
                     sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWTFromJWT(authData));
                 }
             } else if (frame.headers().get("info")!=null && frame.headers().get("info").toString().equals("refreshToken")){
@@ -58,17 +55,11 @@ public class AuthHandler extends Http3RequestStreamInboundHandler {
                 send401Response(ctx, "accessTokenExpired");
             }
         }
-        System.out.println("AuthHandler ends its work");
         ReferenceCountUtil.release(frame);
     }
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3DataFrame frame) throws Exception {
-        if (isAuthorized) {
-            ctx.fireChannelRead(frame);
-        } else {
-            send401Response(ctx, "accessTokenExpired");
-        }
     }
 
     @Override

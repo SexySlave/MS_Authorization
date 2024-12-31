@@ -3,6 +3,7 @@ package ms.netty.client;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.incubator.codec.http3.*;
 import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.util.AttributeKey;
 import io.netty.util.NetUtil;
 
 import java.io.BufferedReader;
@@ -24,12 +25,17 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws Exception {
+
+        System.out.println("Got header");
+
         if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "401")) {
             handleUnauthorized(ctx, frame);
         } else if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "202")) {
             handleAuthorized(ctx, frame);
         }
     }
+
+
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3DataFrame frame) throws Exception {
@@ -45,12 +51,12 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
         if (frame.headers().get("info").toString().equals("accessTokenExpired")) {
             System.out.println("access token expired, sending refresh token...");
 
-            BufferedReader reader = new BufferedReader(new FileReader("src/main/java/ms/netty/client/tokens"));
-            String rt = reader.readLine().split(" ")[1];
-            reader.close();
+
+            String rt = UIHandler.getAccessAndRefreshTokens()[1];
+
 
             Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
-            frame1.headers().method("GET").path("/secure/api-all")
+            frame1.headers().method("GET").path("/secure")
                     .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                     .scheme("https")
                     .add("authorization", "Bearer " + rt)
@@ -65,10 +71,10 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
             if (answ.equalsIgnoreCase("y")) {
                 System.out.println("registration...");
                 Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
-                frame1.headers().method("GET").path("/secure/api-all")
+                frame1.headers().method("GET").path("/secure")
                         .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
                         .scheme("https")
-                        .add("authorization", "Basic " + Base64.getEncoder().encodeToString(UIHandler.getLogdata().getBytes(StandardCharsets.UTF_8)))
+                        .add("authorization", "Basic " + Base64.getEncoder().encodeToString(UIHandler.getLogdata().concat(":").concat(UIHandler.getMacAddress()).getBytes(StandardCharsets.UTF_8)))
                         .add("info", "reg");
 
                 createNewChannelAndSendRequest(quicChannel, frame1);
@@ -77,17 +83,27 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
             }
         }
     }
-    private void handleAuthorized(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws IOException {
+    private void handleAuthorized(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws IOException, InterruptedException {
         if (frame.headers().get("refreshtoken") != null) {
             System.out.println("access and refresh tokens have been received, user authorized");
             System.out.println("accessToken: " + frame.headers().get("accesstoken"));
             System.out.println("refreshToken: " + frame.headers().get("refreshtoken"));
             UIHandler.saveTokensInFile(frame.headers().get("accesstoken").toString(), frame.headers().get("refreshtoken").toString());
+
+            System.out.println(((Http3HeadersFrame) quicChannel.attr(AttributeKey.valueOf( "HeaderFrame")).get()).headers());
+            //System.out.println(((Http3DataFrame) quicChannel.attr(AttributeKey.valueOf( "DataFrame")).get()));
+
+             Http3HeadersFrame headersFrame = (Http3HeadersFrame) quicChannel.attr(AttributeKey.valueOf( "HeaderFrame")).get();
+             headersFrame.headers().set("authorization", "Bearer " + UIHandler.getAccessAndRefreshTokens()[0]);
+
+
+                    createNewChannelAndSendRequest(quicChannel, headersFrame,  (Http3DataFrame)quicChannel.attr(AttributeKey.valueOf( "DataFrame")).get());
+
         } else {
             System.out.println("new access token have been received, user authorized");
             UIHandler.refreshAccessTokenInFile(frame.headers().get("accesstoken").toString());
         }
-        ctx.close();
+
     }
 
     private void reLogin(ChannelHandlerContext ctx) throws IOException, InterruptedException {
@@ -95,13 +111,13 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
         System.out.println("Encoding sensitive data...");
 
         Http3HeadersFrame frame1 = new DefaultHttp3HeadersFrame();
-        frame1.headers().method("GET").path("/secure/api-all")
+        frame1.headers().method("GET").path("/secure")
                 .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
-                .scheme("https").add("authorization", "Basic " + Base64.getEncoder().encodeToString(UIHandler.getLogdata().getBytes(StandardCharsets.UTF_8)));
+                .scheme("https").add("authorization", "Basic " + Base64.getEncoder().encodeToString(UIHandler.getLogdata().concat(":").concat(UIHandler.getMacAddress()).getBytes(StandardCharsets.UTF_8)));
         createNewChannelAndSendRequest(quicChannel, frame1);
     }
 
-    public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException, SocketException, UnknownHostException {
-        Http3.newRequestStream(quicChannel, new ClientChannelHandler_old(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();
+    public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3Frame... http3Frame) throws InterruptedException, IOException {
+        Http3.newRequestStream(quicChannel, new ClientChannelHandlerDefault(quicChannel, http3Frame)).sync().getNow().closeFuture();
     }
 }

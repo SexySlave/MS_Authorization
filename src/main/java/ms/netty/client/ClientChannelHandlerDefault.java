@@ -1,12 +1,13 @@
 package ms.netty.client;
 
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.incubator.codec.http3.Http3;
-import io.netty.incubator.codec.http3.Http3DataFrame;
-import io.netty.incubator.codec.http3.Http3HeadersFrame;
-import io.netty.incubator.codec.http3.Http3RequestStreamInboundHandler;
+import io.netty.incubator.codec.http3.*;
 import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.util.NetUtil;
 import io.netty.util.ReferenceCountUtil;
+import ms.netty_old.client.ClientChannelHandler;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedReader;
@@ -24,10 +25,10 @@ import java.util.Scanner;
 
 public class ClientChannelHandlerDefault extends Http3RequestStreamInboundHandler {
 
-    private final ClientChannelHandler_old.UIHandler handler = new ClientChannelHandler_old.UIHandler();
-    private final Http3HeadersFrame http3HeadersFrame;
+
+    private final Http3Frame[] http3Frame;
     private final QuicChannel quicChannel;
-    private final Logger log = Logger.getLogger(ClientChannelHandler_old.class);
+    private final Logger log = Logger.getLogger(ClientChannelHandler.class);
 
     private String logData;
     private final String logDataEncoded;
@@ -35,9 +36,9 @@ public class ClientChannelHandlerDefault extends Http3RequestStreamInboundHandle
     private String accessToken;
     private String refreshToken;
 
-    public ClientChannelHandlerDefault(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws IOException {
+    public ClientChannelHandlerDefault(QuicChannel quicChannel, Http3Frame... http3Frame) throws IOException {
         this.quicChannel = quicChannel;
-        this.http3HeadersFrame = http3HeadersFrame;
+        this.http3Frame = http3Frame;
 
         // set upping macAddress
         macAddress = UIHandler.getMacAddress();
@@ -54,19 +55,23 @@ public class ClientChannelHandlerDefault extends Http3RequestStreamInboundHandle
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
 
-        if (http3HeadersFrame != null) {
-            ctx.writeAndFlush(http3HeadersFrame);
-        } else {
-            // if we have tokens in file, we try to authorize with them
-            if (accessToken == null || refreshToken == null) {
-                // ur own logic...
-
-            } else {
-                // authorization via user data
-                // ur own logic...
-
+        if (http3Frame != null) {
+            for (Http3Frame frame : http3Frame) {
+                ctx.write(frame);
             }
+            ctx.flush();
+        } else {
+            Http3HeadersFrame headersFrame = new DefaultHttp3HeadersFrame();
+            headersFrame.headers().method("GET").path("/secure/api-all")
+                    .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
+                    .scheme("https");
+            Http3DataFrame dataFrame = new DefaultHttp3DataFrame(Unpooled.copiedBuffer("Hello, HTTP/3!".getBytes()));
 
+
+            System.out.println("Sending message");
+            ctx.write(headersFrame);
+            ctx.write(dataFrame);
+            ctx.flush();
         }
 
 
@@ -89,6 +94,7 @@ public class ClientChannelHandlerDefault extends Http3RequestStreamInboundHandle
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3DataFrame frame) throws Exception {
+        System.out.println("Received: " + frame.content().toString(StandardCharsets.UTF_8));
         ReferenceCountUtil.release(frame);
     }
 
@@ -99,9 +105,9 @@ public class ClientChannelHandlerDefault extends Http3RequestStreamInboundHandle
 
     // function which creates new channel and sends request
     // its main idea of QUICK protocol to send each request in new channel
-    public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException, SocketException, UnknownHostException {
+    public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException, IOException {
         log.debug("Creating new quicChannel");
-        Http3.newRequestStream(quicChannel, new ClientChannelHandler_old(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();
+        Http3.newRequestStream(quicChannel, new ClientChannelHandlerDefault(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();
     }
 
 }

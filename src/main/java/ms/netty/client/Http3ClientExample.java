@@ -20,6 +20,7 @@ package ms.netty.client;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -28,6 +29,7 @@ import io.netty.incubator.codec.http3.Http3ClientConnectionHandler;
 import io.netty.incubator.codec.quic.*;
 import org.apache.log4j.BasicConfigurator;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
@@ -59,14 +61,25 @@ public final class Http3ClientExample {
                     .bind(0).sync().channel();
 
             QuicChannel quicChannel = QuicChannel.newBootstrap(channel)
-                    .handler(new Http3ClientConnectionHandler())
+                    .handler(new Http3ClientConnectionHandler() )
                     .remoteAddress(new InetSocketAddress("127.0.0.1", 9999))
                     .connect()
                     .get();
 
 
             io.netty.util.concurrent.Future<QuicStreamChannel> quicStreamChannelFuture = Http3.newRequestStream(quicChannel,
-                    new ClientChannelHandler(quicChannel, null));
+                    new ChannelInitializer<QuicStreamChannel>() {
+                        @Override
+                        protected void initChannel(QuicStreamChannel ch) throws IOException {
+                            // adding outbound handlers
+                            ch.pipeline().addLast(new ClientOutboundAuthHandler(quicChannel));
+                            // ------------------------------------------------------
+                            // adding inbound handlers
+                            ch.pipeline().addLast(new ClientChannelHandlerDefault(quicChannel, null));
+                            ch.pipeline().addLast(new ClientAuthChannelHandler(quicChannel));
+
+                        }
+                    });
             quicStreamChannelFuture.sync();
             QuicStreamChannel streamChannel = quicStreamChannelFuture.getNow();
 
