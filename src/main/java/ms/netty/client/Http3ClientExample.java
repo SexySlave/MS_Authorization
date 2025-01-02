@@ -94,11 +94,5 @@ public final class Http3ClientExample {
             group.shutdownGracefully();
         }
 
-
-
-
-
-
-
     }
 }

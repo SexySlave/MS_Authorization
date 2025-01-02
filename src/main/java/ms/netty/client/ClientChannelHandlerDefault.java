@@ -41,7 +41,7 @@ public class ClientChannelHandlerDefault extends Http3RequestStreamInboundHandle
         this.http3Frame = http3Frame;
 
         // set upping macAddress
-        macAddress = UIHandler.getMacAddress();
+        macAddress = getMacAddress();
         // set upping logData
         logData = UIHandler.getLogdata();
         logData = logData.concat(":" + macAddress);
@@ -108,6 +108,15 @@ public class ClientChannelHandlerDefault extends Http3RequestStreamInboundHandle
     public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException, IOException {
         log.debug("Creating new quicChannel");
         Http3.newRequestStream(quicChannel, new ClientChannelHandlerDefault(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();
+    }
+
+    public  String getMacAddress() throws UnknownHostException, SocketException {
+        byte[] hardwareAddress = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()).getHardwareAddress();
+        String[] hexadecimal = new String[hardwareAddress.length];
+        for (int i = 0; i < hardwareAddress.length; i++) {
+            hexadecimal[i] = String.format("%02X", hardwareAddress[i]);
+        }
+        return String.join("-", hexadecimal);
     }
 
 }

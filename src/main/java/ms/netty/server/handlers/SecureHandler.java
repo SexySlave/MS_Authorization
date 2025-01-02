@@ -48,7 +48,7 @@ public class SecureHandler extends Http3RequestStreamInboundHandler {
             if (authorization.validateJWT(authData)) {
                  if (authorization.getJWTType(authData).equals(REFRESHTOKEN)){
                     sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWTFromJWT(authData));
-                }
+                } else {System.out.println(authType + " " + authData);}
             } else if (frame.headers().get("info")!=null && frame.headers().get("info").toString().equals("refreshToken")){
                 send401Response(ctx, "refreshTokenExpired");
             } else {

@@ -141,7 +141,7 @@ public class Authorization {
         return JWT.create()
                 .withIssuer("MS_AUTHORIZATION")
                 .withSubject("MS_AUTHORIZATION_user")
-                .withClaim("type", "refreshtokenuuid")
+                .withClaim("type", "refreshtoken")
                 .withClaim("version", getRefreshTokenVersion(refreshUUID))
                 .withClaim("refreshtokenuuid", refreshUUID)
                 .withIssuedAt(new Date())
@@ -183,7 +183,7 @@ public class Authorization {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             try {
-                int newVersion = session.createQuery("SELECT JWTversion from UsersDefault where refreshtokenUUID = :i", int.class)
+                int newVersion = session.createQuery("SELECT tokenVersion from UsersDefault where refreshtokenUUID = :i", int.class)
                         .setParameter("i", refreshTokenUUID)
                         .getSingleResultOrNull() + 1;
                 session.createMutationQuery("update RefreshTokens set tokenVersion = :v where tokenUUID = :i")

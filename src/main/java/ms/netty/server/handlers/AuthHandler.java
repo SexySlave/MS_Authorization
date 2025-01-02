@@ -22,11 +22,14 @@ public class AuthHandler extends Http3RequestStreamInboundHandler {
     private static final String ACCESSTOKEN = "accesstoken";
     private static final String REFRESHTOKEN = "refreshtoken";
 
-    private static boolean isAuthorized = false;
+    private boolean isAuthorized = false;
+
+    public AuthHandler(){System.out.println(this.hashCode());}
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws Exception {
         System.out.println("AuthorizationHandler receive a header frame");
+        System.out.println("isAuthorized == " + isAuthorized);
 
         String authType = frame.headers().get("authorization").toString().split(" ")[0];
         String authData = frame.headers().get("authorization").toString().split(" ")[1];
@@ -38,6 +41,7 @@ public class AuthHandler extends Http3RequestStreamInboundHandler {
                 sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
             } else {
                 if (frame.headers().get("info") != null && frame.headers().get("info").toString().equals("reg")) {
+                    System.out.println("Registrting");
                     authorization.registerUser(logData);
                     sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
                 } else {
@@ -64,6 +68,7 @@ public class AuthHandler extends Http3RequestStreamInboundHandler {
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3DataFrame frame) throws Exception {
+        System.out.println("AuthHandler received data frame. isAuthorized == " + isAuthorized);
         if (isAuthorized) {
             ctx.fireChannelRead(frame);
         } else {

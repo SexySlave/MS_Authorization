@@ -13,7 +13,7 @@ import java.util.Scanner;
 
 public class UIHandler {
 
-    private static String logdata = "lolipop:qwerty12223";
+    private static String logdata = "lolipops:qwerty12223";
 
 
     public void makeToast(String s) {
