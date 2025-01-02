@@ -12,57 +12,41 @@ import ms.netty.server.Http3ServerExample;
 
 import java.util.Base64;
 
+/**
+ * <p>This class is responsible for handling authorization. It`s just validating the JWT token.
+ * If the token is valid, it passes the request to the next handler. Otherwise, it sends a 401 response.
+ * It using the Authorization class to validate JWT tokens, operate with the database and etc.
+ * </p>
+ *
+ * <p>This class have no @Route annotation, because it is not an endpoint.</p>
+ * **/
+
 public class AuthHandler extends Http3RequestStreamInboundHandler {
 
     Authorization authorization = new Authorization(Http3ServerExample.keyPair, Http3ServerExample.sessionFactory);
 
-    private static final String BEARER = "Bearer";
-    private static final String BASIC = "Basic";
-
     private static final String ACCESSTOKEN = "accesstoken";
-    private static final String REFRESHTOKEN = "refreshtoken";
 
     private boolean isAuthorized = false;
+
 
     public AuthHandler(){System.out.println(this.hashCode());}
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws Exception {
         System.out.println("AuthorizationHandler receive a header frame");
-        System.out.println("isAuthorized == " + isAuthorized);
 
-        String authType = frame.headers().get("authorization").toString().split(" ")[0];
         String authData = frame.headers().get("authorization").toString().split(" ")[1];
 
-        if (authType.equals(BASIC)){
-            String logData = new String(Base64.getDecoder().decode(authData));
-            System.out.println("logData: " + logData);
-            if (authorization.checkUser(logData)) {
-                sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
-            } else {
-                if (frame.headers().get("info") != null && frame.headers().get("info").toString().equals("reg")) {
-                    System.out.println("Registrting");
-                    authorization.registerUser(logData);
-                    sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
-                } else {
-                    send401Response(ctx, "User not found, do u wanna sign up?");
-                }
-            }
-        } else if (authType.equals(BEARER)) {
             if (authorization.validateJWT(authData)) {
                 if (authorization.getJWTType(authData).equals(ACCESSTOKEN)){
                     ctx.fireChannelRead(frame);
                     isAuthorized = true;
-                } else if (authorization.getJWTType(authData).equals(REFRESHTOKEN)){
-                    sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWTFromJWT(authData));
                 }
-            } else if (frame.headers().get("info")!=null && frame.headers().get("info").toString().equals("refreshToken")){
-                send401Response(ctx, "refreshTokenExpired");
             } else {
                 send401Response(ctx, "accessTokenExpired");
             }
-        }
-        System.out.println("AuthHandler ends its work");
+
         ReferenceCountUtil.release(frame);
     }
 

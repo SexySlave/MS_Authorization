@@ -4,7 +4,9 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.incubator.codec.http3.Http3DataFrame;
 import io.netty.incubator.codec.http3.Http3HeadersFrame;
 import io.netty.incubator.codec.http3.Http3RequestStreamInboundHandler;
+import ms.netty.server.Route;
 
+@Route(route = "/api")
 public class ApiHandler extends Http3RequestStreamInboundHandler {
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws Exception {

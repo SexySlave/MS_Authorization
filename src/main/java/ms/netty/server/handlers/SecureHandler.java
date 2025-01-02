@@ -9,9 +9,16 @@ import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.ReferenceCountUtil;
 import ms.netty.server.Authorization;
 import ms.netty.server.Http3ServerExample;
+import ms.netty.server.Route;
 
 import java.util.Base64;
 
+/**
+ * </p>This class is responsible for handling authorization, but unlike the AuthHandler class, it is make all operations except validation and passing the request to the next handler. </p>
+ * <p>It`s an endpoint, so we must annotate this class by @Route</p>
+ * **/
+
+@Route(route = "/secure")
 public class SecureHandler extends Http3RequestStreamInboundHandler {
 
     Authorization authorization = new Authorization(Http3ServerExample.keyPair, Http3ServerExample.sessionFactory);
@@ -22,7 +29,7 @@ public class SecureHandler extends Http3RequestStreamInboundHandler {
     private static final String ACCESSTOKEN = "accesstoken";
     private static final String REFRESHTOKEN = "refreshtoken";
 
-    private static boolean isAuthorized = false;
+    private static final boolean isAuthorized = false;
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws Exception {
@@ -31,25 +38,27 @@ public class SecureHandler extends Http3RequestStreamInboundHandler {
         String authType = frame.headers().get("authorization").toString().split(" ")[0];
         String authData = frame.headers().get("authorization").toString().split(" ")[1];
 
-        if (authType.equals(BASIC)){
+        if (authType.equals(BASIC)) {
             String logData = new String(Base64.getDecoder().decode(authData));
             System.out.println("logData: " + logData);
             if (authorization.checkUser(logData)) {
-                sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
+                sendResponseWithTokens(ctx, authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
             } else {
                 if (frame.headers().get("info") != null && frame.headers().get("info").toString().equals("reg")) {
                     authorization.registerUser(logData);
-                    sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
+                    sendResponseWithTokens(ctx, authorization.generateAccessJWT(), authorization.generateRefreshJWT(logData.split(":")[2]));
                 } else {
                     send401Response(ctx, "User not found, do u wanna sign up?");
                 }
             }
         } else if (authType.equals(BEARER)) {
             if (authorization.validateJWT(authData)) {
-                 if (authorization.getJWTType(authData).equals(REFRESHTOKEN)){
-                    sendResponseWithTokens(ctx,  authorization.generateAccessJWT(), authorization.generateRefreshJWTFromJWT(authData));
-                } else {System.out.println(authType + " " + authData);}
-            } else if (frame.headers().get("info")!=null && frame.headers().get("info").toString().equals("refreshToken")){
+                if (authorization.getJWTType(authData).equals(REFRESHTOKEN)) {
+                    sendResponseWithTokens(ctx, authorization.generateAccessJWT(), authorization.generateRefreshJWTFromJWT(authData));
+                } else {
+                    System.out.println(authType + " " + authData);
+                }
+            } else if (frame.headers().get("info") != null && frame.headers().get("info").toString().equals("refreshToken")) {
                 send401Response(ctx, "refreshTokenExpired");
             } else {
                 send401Response(ctx, "accessTokenExpired");

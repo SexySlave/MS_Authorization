@@ -1,65 +1,55 @@
 package ms.netty.server;
 
+import io.netty.incubator.codec.http3.Http3RequestStreamInboundHandler;
+
 import java.lang.reflect.Method;
 
-public class APIProvider extends API{
+/**
+ * <p>This class is a provider of API methods.</p>
+ * <p>It`s a facade for invoking API methods which check all requirements before invoking (@RequiresAuthorization etc.).</p>
+ * **/
 
+public class APIProvider extends API {
 
-    public static void invoke(Object obj, String methodName, Object... args) throws Exception {
-        // Получаем метод по имени
-        Method method = obj.getClass().getMethod(methodName);
-
-        // Проверяем, помечен ли метод аннотацией @RequiresAuthentication
-        if (method.isAnnotationPresent(RequiresAuthentication.class)) {
-            // Проверяем аутентификацию
-            if (!isUserAuthenticated()) {
-                throw new SecurityException("User is not authenticated!");
-            }
-        }
-
-        // Вызываем метод
-        method.invoke(obj, args);
-    }
-
-
-    public static void invokeSecureOperation1() throws NoSuchMethodException {
+    public static <T extends Http3RequestStreamInboundHandler> void invokeSecureOperation1(T handler) throws NoSuchMethodException {
         Method method = API.class.getDeclaredMethod("secureOperation1");
-        preInvokeCheck(method);
+        preInvokeCheck(method, handler);
         secureOperation1();
     }
-    public static void invokeSecureOperation2() throws NoSuchMethodException {
+
+    public static <T extends Http3RequestStreamInboundHandler> void invokeSecureOperation2(T handler) throws NoSuchMethodException {
         Method method = API.class.getDeclaredMethod("secureOperation2");
-        preInvokeCheck(method);
+        preInvokeCheck(method, handler);
         secureOperation2();
     }
-    public static void invokeSecureOperation3() throws NoSuchMethodException {
+
+    public static <T extends Http3RequestStreamInboundHandler> void invokeSecureOperation3(T handler) throws NoSuchMethodException {
         Method method = API.class.getDeclaredMethod("secureOperation3");
-        preInvokeCheck(method);
+        preInvokeCheck(method, handler);
         secureOperation3();
     }
-    public static void invokeNonSecureOperation1() throws NoSuchMethodException {
+
+    public static <T extends Http3RequestStreamInboundHandler> void invokeNonSecureOperation1(T handler) throws NoSuchMethodException {
         Method method = API.class.getDeclaredMethod("nonSecureOperation1");
-        preInvokeCheck(method);
+        preInvokeCheck(method, handler);
         nonSecureOperation1();
     }
 
-    private static void preInvokeCheck(Method method){
+    private static <T extends Http3RequestStreamInboundHandler> void preInvokeCheck(Method method, T handler) {
         // Проверяем, помечен ли метод аннотацией @RequiresAuthentication
         if (method.isAnnotationPresent(RequiresAuthentication.class)) {
             // Проверяем аутентификацию
-            if (!isUserAuthenticated()) {
-                throw new SecurityException("User is not authenticated!");
+            if (!isUserAuthorized(handler)) {
+                throw new SecurityException("User is not authorized!");
             }
         }
     }
 
-    /**
-     * Пример проверки аутентификации.
-     *
-     * @return true, если пользователь аутентифицирован, иначе false.
-     */
-    private static boolean isUserAuthenticated() {
-        // Реализуйте свою логику аутентификации
-        return true; // Здесь возвращаем true для примера
+    private static <T extends Http3RequestStreamInboundHandler> boolean isUserAuthorized(T handler) {
+
+        if (handler.getClass().isAnnotationPresent(Route.class)) {
+            return handler.getClass().getAnnotation(Route.class).route().contains("/secure/");
+        }
+        return false;
     }
 }

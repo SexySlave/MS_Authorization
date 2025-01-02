@@ -1,22 +1,5 @@
 package ms.netty.server;
 
-/*
- * Copyright 2020 The Netty Project
- *
- * The Netty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
-
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -41,13 +24,18 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * <p>An enter point of Server. Here u can change different params like  @param initialMaxData , @param initialMaxData etc.</p>
+ */
 
 public final class Http3ServerExample {
-    private static final byte[] CONTENT = "Hello World!\r\n".getBytes(CharsetUtil.US_ASCII);
+
     static final int PORT = 9999;
     public static KeyPair keyPair = generateRSAKeyPair();
-    public  static SessionFactory sessionFactory;
-    private Http3ServerExample() { }
+    public static SessionFactory sessionFactory;
+
+    private Http3ServerExample() {
+    }
 
     public static void main(String... args) throws Exception {
 
@@ -74,7 +62,7 @@ public final class Http3ServerExample {
         NioEventLoopGroup group = new NioEventLoopGroup(1);
         SelfSignedCertificate cert = new SelfSignedCertificate();
 
-        QuicSslContext sslContext = QuicSslContextBuilder.forServer(cert.key(), null , cert.cert())
+        QuicSslContext sslContext = QuicSslContextBuilder.forServer(cert.key(), null, cert.cert())
                 .applicationProtocols(Http3.supportedApplicationProtocols()).build();
         ChannelHandler codec = Http3.newQuicServerCodecBuilder()
                 .sslContext(sslContext)
@@ -108,14 +96,14 @@ public final class Http3ServerExample {
                     .channel(NioDatagramChannel.class)
                     .handler(codec)
                     .bind(new InetSocketAddress(PORT)).sync().channel();
-            System.out.println(channel.localAddress() +" "+ PORT);
+            System.out.println(channel.localAddress() + " " + PORT);
             channel.closeFuture().sync();
         } finally {
             group.shutdownGracefully();
         }
     }
 
-    public static KeyPair generateRSAKeyPair()   {
+    public static KeyPair generateRSAKeyPair() {
         KeyPairGenerator keyPairGenerator = null;
         try {
             keyPairGenerator = KeyPairGenerator.getInstance("RSA");

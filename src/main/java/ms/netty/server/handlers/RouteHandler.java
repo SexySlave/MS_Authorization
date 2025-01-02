@@ -2,9 +2,14 @@ package ms.netty.server.handlers;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.incubator.codec.http3.*;
+import ms.netty.server.Route;
 
 import java.util.HashMap;
 import java.util.Map;
+
+/**
+ * <p>This class is responsible for routing requests to the appropriate handler.</p>
+ * **/
 
 public class RouteHandler extends Http3RequestStreamInboundHandler {
     private final Map<String, Http3RequestStreamInboundHandler[]> routes = new HashMap<>();
@@ -13,15 +18,15 @@ public class RouteHandler extends Http3RequestStreamInboundHandler {
 
     public RouteHandler() {
         // Определяем маршруты
-        routes.put("/secure", new Http3RequestStreamInboundHandler[] {new SecureHandler()});
-        routes.put("/secure/api-all", new Http3RequestStreamInboundHandler[] {new AuthHandler(), new ApiAllHandler()});
-        routes.put("/api",new Http3RequestStreamInboundHandler[] { new ApiHandler()});
-        routes.put("/", new Http3RequestStreamInboundHandler[] {new MainHandler()});
+        routes.put(SecureHandler.class.getAnnotation(Route.class).route(), new Http3RequestStreamInboundHandler[]{new SecureHandler()});
+        routes.put(ApiAllHandler.class.getAnnotation(Route.class).route(), new Http3RequestStreamInboundHandler[]{new AuthHandler(), new ApiAllHandler()});
+        routes.put(ApiHandler.class.getAnnotation(Route.class).route(), new Http3RequestStreamInboundHandler[]{new ApiHandler()});
+        routes.put(MainHandler.class.getAnnotation(Route.class).route(), new Http3RequestStreamInboundHandler[]{new MainHandler()});
     }
 
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws Exception {
-        String route = String.valueOf (frame.headers().path());
+        String route = String.valueOf(frame.headers().path());
         System.out.println("route: " + route);
         // Ищем обработчик для указанного пути
         streamInboundHandler = routes.get(route);
@@ -42,12 +47,7 @@ public class RouteHandler extends Http3RequestStreamInboundHandler {
 
     @Override
     protected void channelInputClosed(ChannelHandlerContext ctx) throws Exception {
-
     }
-
-
-
-
 
     private void sendNotFound(ChannelHandlerContext ctx) {
         Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();

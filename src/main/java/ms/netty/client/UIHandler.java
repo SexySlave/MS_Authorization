@@ -11,14 +11,16 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
+    /**
+     *  UIHandler class is supporting class.
+     *  It imitates user interface, operating with database etc.
+     *  In ur project u have to implement it by ur own way.
+     * **/
+
 public class UIHandler {
 
     private static String logdata = "lolipops:qwerty12223";
 
-
-    public void makeToast(String s) {
-        System.out.println(s);
-    }
 
     public static String YesOrNotQuestion(String q) {
         Scanner in = new Scanner(System.in);

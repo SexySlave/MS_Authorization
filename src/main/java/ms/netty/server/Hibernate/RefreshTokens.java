@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 @Table(name = "refresh_tokens")
 public class RefreshTokens {
 
-
     public RefreshTokens() {
     }
 

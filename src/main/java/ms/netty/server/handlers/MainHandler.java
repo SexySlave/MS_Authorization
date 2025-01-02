@@ -4,7 +4,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.incubator.codec.http3.Http3DataFrame;
 import io.netty.incubator.codec.http3.Http3HeadersFrame;
 import io.netty.incubator.codec.http3.Http3RequestStreamInboundHandler;
+import ms.netty.server.Route;
 
+/**
+ * <p>This class handling root route. Here have to be ur implementation <p/>
+ * **/
+
+@Route(route = "/")
 public class MainHandler extends Http3RequestStreamInboundHandler {
     @Override
     protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws Exception {

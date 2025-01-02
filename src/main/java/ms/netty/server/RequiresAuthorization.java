@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Аннотация для методов, которые требуют аутентификации.
+ * <p>Annotation for methods which requires authentication.</p>
  */
 @Retention(RetentionPolicy.RUNTIME) // Доступна во время выполнения
 @Target(ElementType.METHOD)          // Применяется к методам
-public @interface RequiresAuthentication {
+public @interface RequiresAuthorization {
 }

@@ -1,22 +1,5 @@
 package ms.netty.client;
 
-/*
- * Copyright 2020 The Netty Project
- *
- * The Netty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
-
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -28,13 +11,15 @@ import io.netty.incubator.codec.http3.DefaultHttp3HeadersFrame;
 import io.netty.incubator.codec.http3.Http3;
 import io.netty.incubator.codec.http3.Http3ClientConnectionHandler;
 import io.netty.incubator.codec.http3.Http3HeadersFrame;
-import io.netty.incubator.codec.quic.*;
+import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.incubator.codec.quic.QuicSslContext;
+import io.netty.incubator.codec.quic.QuicSslContextBuilder;
+import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.NetUtil;
 import org.apache.log4j.BasicConfigurator;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 public final class Http3ClientExample {

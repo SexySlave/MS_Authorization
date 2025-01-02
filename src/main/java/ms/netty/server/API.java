@@ -9,17 +9,17 @@ package ms.netty.server;
 
 public class API {
 
-    @RequiresAuthentication
+    @RequiresAuthorization
     protected static void secureOperation1() {
         System.out.println("Executing secure operation1...");
     }
 
-    @RequiresAuthentication
+    @RequiresAuthorization
     protected static void secureOperation2() {
         System.out.println("Executing secure operation2...");
     }
 
-    @RequiresAuthentication
+    @RequiresAuthorization
     protected static void secureOperation3() {
         System.out.println("Executing secure operation3...");
     }

@@ -10,16 +10,18 @@ import ms.netty.server.Hibernate.UsersDefault;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.hibernate.cfg.Configuration;
 import org.mindrot.jbcrypt.BCrypt;
 
 import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+
+/**
+ * <p>This class is responsible for authorization, token generation and working with database. </p>
+ * **/
 
 public class Authorization {
 
@@ -29,6 +31,7 @@ public class Authorization {
     private final RSAPrivateKey privateKey;
     private final Algorithm algorithm;
     private UsersDefault user;
+
 
     public Authorization(KeyPair keyPair, SessionFactory sessionFactory) {
         this.keyPair = keyPair;
@@ -41,9 +44,7 @@ public class Authorization {
     public Boolean checkUser(String logData) {
         try (Session session = sessionFactory.openSession()) {
             String[] logDataParts = logData.split(":");
-            UsersDefault user = session.createQuery("from UsersDefault where login = :l", UsersDefault.class)
-                    .setParameter("l", logDataParts[0])
-                    .getSingleResultOrNull();
+            UsersDefault user = session.createQuery("from UsersDefault where login = :l", UsersDefault.class).setParameter("l", logDataParts[0]).getSingleResultOrNull();
 
             if (user != null && BCrypt.checkpw(logDataParts[1], user.getPassword())) {
                 this.user = user;
@@ -103,32 +104,16 @@ public class Authorization {
     }
 
     public String generateAccessJWT() {
-        return JWT.create()
-                .withIssuer("MS_AUTHORIZATION")
-                .withSubject("MS_AUTHORIZATION_user")
-                .withClaim("type", "accesstoken")
-                .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() + 60000L * 15)) // 15 min
-                .withJWTId(UUID.randomUUID().toString())
-                .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
-                .sign(algorithm);
+        return JWT.create().withIssuer("MS_AUTHORIZATION").withSubject("MS_AUTHORIZATION_user").withClaim("type", "accesstoken").withIssuedAt(new Date()).withExpiresAt(new Date(System.currentTimeMillis() + 60000L * 15)) // 15 min
+                .withJWTId(UUID.randomUUID().toString()).withNotBefore(new Date(System.currentTimeMillis() - 1000L)).sign(algorithm);
     }
 
     public String generateRefreshJWT(String MACAddress) {
         updateRefreshTokenVersion(user.getId(), MACAddress);
         updateInternalUserRefreshTokens();
 
-        return JWT.create()
-                .withIssuer("MS_AUTHORIZATION")
-                .withSubject("MS_AUTHORIZATION_user")
-                .withClaim("type", "refreshtoken")
-                .withClaim("version", user.getRefreshTokenByMacAddress(MACAddress).getTokenVersion())
-                .withClaim("refreshtokenuuid", user.getRefreshTokenByMacAddress(MACAddress).getTokenUUID())
-                .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 15)) // 60 days
-                .withJWTId(UUID.randomUUID().toString())
-                .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
-                .sign(algorithm);
+        return JWT.create().withIssuer("MS_AUTHORIZATION").withSubject("MS_AUTHORIZATION_user").withClaim("type", "refreshtoken").withClaim("version", user.getRefreshTokenByMacAddress(MACAddress).getTokenVersion()).withClaim("refreshtokenuuid", user.getRefreshTokenByMacAddress(MACAddress).getTokenUUID()).withIssuedAt(new Date()).withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 15)) // 60 days
+                .withJWTId(UUID.randomUUID().toString()).withNotBefore(new Date(System.currentTimeMillis() - 1000L)).sign(algorithm);
     }
 
     public String generateRefreshJWTFromJWT(String refreshJWT) {
@@ -138,24 +123,13 @@ public class Authorization {
         updateRefreshTokenVersionByUUID(refreshUUID);
         updateInternalUserByRefreshUUID(refreshUUID);
 
-        return JWT.create()
-                .withIssuer("MS_AUTHORIZATION")
-                .withSubject("MS_AUTHORIZATION_user")
-                .withClaim("type", "refreshtoken")
-                .withClaim("version", getRefreshTokenVersion(refreshUUID))
-                .withClaim("refreshtokenuuid", refreshUUID)
-                .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 60)) // 60 days
-                .withJWTId(UUID.randomUUID().toString())
-                .withNotBefore(new Date(System.currentTimeMillis() - 1000L))
-                .sign(algorithm);
+        return JWT.create().withIssuer("MS_AUTHORIZATION").withSubject("MS_AUTHORIZATION_user").withClaim("type", "refreshtoken").withClaim("version", getRefreshTokenVersion(refreshUUID)).withClaim("refreshtokenuuid", refreshUUID).withIssuedAt(new Date()).withExpiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 60)) // 60 days
+                .withJWTId(UUID.randomUUID().toString()).withNotBefore(new Date(System.currentTimeMillis() - 1000L)).sign(algorithm);
     }
 
     private int getRefreshTokenVersion(int tokenUUID) {
         try (Session session = sessionFactory.openSession()) {
-            return session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID = :i", int.class)
-                    .setParameter("i", tokenUUID)
-                    .getSingleResultOrNull();
+            return session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID = :i", int.class).setParameter("i", tokenUUID).getSingleResultOrNull();
         }
     }
 
@@ -163,14 +137,8 @@ public class Authorization {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             try {
-                int newVersion = session.createQuery("SELECT tokenVersion from RefreshTokens where user_id = :i", int.class)
-                        .setParameter("i", userId)
-                        .getSingleResultOrNull() + 1;
-                session.createMutationQuery("update RefreshTokens set tokenVersion = :v where user_id = :i and mac_address = :mac")
-                        .setParameter("mac", MacAddress)
-                        .setParameter("i", userId)
-                        .setParameter("v", newVersion)
-                        .executeUpdate();
+                int newVersion = session.createQuery("SELECT tokenVersion from RefreshTokens where user_id = :i", int.class).setParameter("i", userId).getSingleResultOrNull() + 1;
+                session.createMutationQuery("update RefreshTokens set tokenVersion = :v where user_id = :i and mac_address = :mac").setParameter("mac", MacAddress).setParameter("i", userId).setParameter("v", newVersion).executeUpdate();
                 transaction.commit();
             } catch (Exception e) {
                 transaction.rollback();
@@ -183,13 +151,8 @@ public class Authorization {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             try {
-                int newVersion = session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID = :i", int.class)
-                        .setParameter("i", refreshTokenUUID)
-                        .getSingleResultOrNull() + 1;
-                session.createMutationQuery("update RefreshTokens set tokenVersion = :v where tokenUUID = :i")
-                        .setParameter("i", refreshTokenUUID)
-                        .setParameter("v", newVersion)
-                        .executeUpdate();
+                int newVersion = session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID = :i", int.class).setParameter("i", refreshTokenUUID).getSingleResultOrNull() + 1;
+                session.createMutationQuery("update RefreshTokens set tokenVersion = :v where tokenUUID = :i").setParameter("i", refreshTokenUUID).setParameter("v", newVersion).executeUpdate();
                 transaction.commit();
             } catch (Exception e) {
                 transaction.rollback();
@@ -200,12 +163,7 @@ public class Authorization {
 
     private void updateInternalUserByRefreshUUID(int refreshTokenUUID) {
         try (Session session = sessionFactory.openSession()) {
-            UsersDefault user = session.createQuery("from UsersDefault where id = :i", UsersDefault.class)
-                    .setParameter("i", session.createQuery("FROM RefreshTokens WHERE tokenUUID = :UUID", RefreshTokens.class)
-                            .setParameter("UUID", refreshTokenUUID)
-                            .getSingleResultOrNull()
-                            .getUser_id())
-                    .getSingleResultOrNull();
+            UsersDefault user = session.createQuery("from UsersDefault where id = :i", UsersDefault.class).setParameter("i", session.createQuery("FROM RefreshTokens WHERE tokenUUID = :UUID", RefreshTokens.class).setParameter("UUID", refreshTokenUUID).getSingleResultOrNull().getUser_id()).getSingleResultOrNull();
 
             if (user != null) {
                 this.user = user;
@@ -220,9 +178,7 @@ public class Authorization {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             try {
-                List<RefreshTokens> refreshTokens = session.createQuery("FROM RefreshTokens WHERE user_id = :id", RefreshTokens.class)
-                        .setParameter("id", user.getId())
-                        .getResultList();
+                List<RefreshTokens> refreshTokens = session.createQuery("FROM RefreshTokens WHERE user_id = :id", RefreshTokens.class).setParameter("id", user.getId()).getResultList();
                 user.setRefreshTokens(refreshTokens);
                 transaction.commit();
             } catch (Exception e) {
