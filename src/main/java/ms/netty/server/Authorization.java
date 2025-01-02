@@ -183,7 +183,7 @@ public class Authorization {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             try {
-                int newVersion = session.createQuery("SELECT tokenVersion from UsersDefault where refreshtokenUUID = :i", int.class)
+                int newVersion = session.createQuery("SELECT tokenVersion from RefreshTokens where tokenUUID = :i", int.class)
                         .setParameter("i", refreshTokenUUID)
                         .getSingleResultOrNull() + 1;
                 session.createMutationQuery("update RefreshTokens set tokenVersion = :v where tokenUUID = :i")

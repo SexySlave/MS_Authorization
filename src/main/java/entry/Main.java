@@ -9,6 +9,7 @@ import java.net.NetworkInterface;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
@@ -16,16 +17,22 @@ import java.util.concurrent.TimeUnit;
 public class Main {
     public static void main(String[] args) throws Exception {
 //
-        byte [] hardwareAddress =  NetworkInterface.getByInetAddress(InetAddress.getLocalHost()).getHardwareAddress();
-        String[] hexadecimal = new String[hardwareAddress.length];
-        for (int i = 0; i < hardwareAddress.length; i++) {
-            hexadecimal[i] = String.format("%02X", hardwareAddress[i]);
+
+        Callable<Boolean> callable = new Callable<>() {
+            @Override
+            public Boolean call() throws Exception {
+                TimeUnit.MILLISECONDS.sleep(1000*60*12);
+                return true;
+            }
+        };
+
+
+        while (callable.call()) {
+            System.out.println("smth");
         }
-        String macAddress = String.join("-", hexadecimal);
-        System.out.println(macAddress);
 
 
-        APIProvider.invokeSecureOperation2();
+
 
 
 

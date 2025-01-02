@@ -6,6 +6,7 @@ import io.netty.incubator.codec.quic.QuicChannel;
 import io.netty.util.AttributeKey;
 import io.netty.util.NetUtil;
 
+import javax.security.auth.callback.Callback;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -14,10 +15,14 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
 
     QuicChannel quicChannel;
+
+    private static boolean received401 = false;
 
     public ClientAuthChannelHandler(QuicChannel quicChannel) throws IOException {
         this.quicChannel = quicChannel;
@@ -29,12 +34,12 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
         System.out.println("Got header");
 
         if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "401")) {
+            received401 = true;
             handleUnauthorized(ctx, frame);
         } else if (Objects.equals(Objects.requireNonNull(frame.headers().status()).toString(), "202")) {
             handleAuthorized(ctx, frame);
         }
     }
-
 
 
     @Override
@@ -83,6 +88,7 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
             }
         }
     }
+
     private void handleAuthorized(ChannelHandlerContext ctx, Http3HeadersFrame frame) throws IOException, InterruptedException {
         if (frame.headers().get("refreshtoken") != null) {
             System.out.println("access and refresh tokens have been received, user authorized");
@@ -90,14 +96,25 @@ public class ClientAuthChannelHandler extends Http3RequestStreamInboundHandler {
             System.out.println("refreshToken: " + frame.headers().get("refreshtoken"));
             UIHandler.saveTokensInFile(frame.headers().get("accesstoken").toString(), frame.headers().get("refreshtoken").toString());
 
-            System.out.println(((Http3HeadersFrame) quicChannel.attr(AttributeKey.valueOf( "HeaderFrame")).get()).headers());
+
             //System.out.println(((Http3DataFrame) quicChannel.attr(AttributeKey.valueOf( "DataFrame")).get()));
 
-             Http3HeadersFrame headersFrame = (Http3HeadersFrame) quicChannel.attr(AttributeKey.valueOf( "HeaderFrame")).get();
-             headersFrame.headers().set("authorization", "Bearer " + UIHandler.getAccessAndRefreshTokens()[0]);
+            if (received401){
+
+                Http3HeadersFrame headersFrame = (Http3HeadersFrame) quicChannel.attr(AttributeKey.valueOf( "HeaderFrame")).get();
+                headersFrame.headers().set("authorization", "Bearer " + UIHandler.getAccessAndRefreshTokens()[0]);
 
 
-                    createNewChannelAndSendRequest(quicChannel, headersFrame,  (Http3DataFrame)quicChannel.attr(AttributeKey.valueOf( "DataFrame")).get());
+                createNewChannelAndSendRequest(quicChannel,
+                        headersFrame,
+                        (Http3DataFrame) quicChannel.attr(AttributeKey.valueOf("DataFrame")).get());
+
+                quicChannel.attr(AttributeKey.valueOf("HeaderFrame")).set("");
+                quicChannel.attr(AttributeKey.valueOf("DataFrame")).set("");
+
+                received401 = false;
+            }
+
 
         } else {
             System.out.println("new access token have been received, user authorized");

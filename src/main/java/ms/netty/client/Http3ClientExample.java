@@ -24,13 +24,17 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.incubator.codec.http3.DefaultHttp3HeadersFrame;
 import io.netty.incubator.codec.http3.Http3;
 import io.netty.incubator.codec.http3.Http3ClientConnectionHandler;
+import io.netty.incubator.codec.http3.Http3HeadersFrame;
 import io.netty.incubator.codec.quic.*;
+import io.netty.util.NetUtil;
 import org.apache.log4j.BasicConfigurator;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 public final class Http3ClientExample {
@@ -61,7 +65,7 @@ public final class Http3ClientExample {
                     .bind(0).sync().channel();
 
             QuicChannel quicChannel = QuicChannel.newBootstrap(channel)
-                    .handler(new Http3ClientConnectionHandler() )
+                    .handler(new Http3ClientConnectionHandler())
                     .remoteAddress(new InetSocketAddress("127.0.0.1", 9999))
                     .connect()
                     .get();
@@ -83,10 +87,31 @@ public final class Http3ClientExample {
             quicStreamChannelFuture.sync();
             QuicStreamChannel streamChannel = quicStreamChannelFuture.getNow();
 
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (quicChannel.isOpen()) {
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(1000 * 5);
+                            Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
+
+                            frame.headers().method("GET").path("/secure")
+                                    .authority(NetUtil.LOCALHOST4.getHostAddress() + ":" + 9999)
+                                    .scheme("https").add("authorization", "Bearer " + UIHandler.getAccessAndRefreshTokens()[1]);
+                            Http3.newRequestStream(quicChannel, new ClientChannelHandlerDefault(quicChannel, frame));
+                        } catch (IOException | InterruptedException e) {
+                            System.out.println("sleep interrupted");
+                        }
+                    }
+                }
+            }, "RefreshAccessTokenThread");
+            t.start();
+
+
             // Wait for the stream channel and quic channel to be closed (this will happen after we received the FIN).
             // After this is done we will close the underlying datagram channel.
             streamChannel.closeFuture().sync();
-
+            t.interrupt();
             // After we received the response lets also close the underlying QUIC channel and datagram channel.
             quicChannel.close().sync();
             channel.close().sync();
