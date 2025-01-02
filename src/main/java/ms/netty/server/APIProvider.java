@@ -36,9 +36,8 @@ public class APIProvider extends API {
     }
 
     private static <T extends Http3RequestStreamInboundHandler> void preInvokeCheck(Method method, T handler) {
-        // Проверяем, помечен ли метод аннотацией @RequiresAuthentication
-        if (method.isAnnotationPresent(RequiresAuthentication.class)) {
-            // Проверяем аутентификацию
+        // Проверяем, помечен ли метод аннотацией @RequiresAuthorization
+        if (method.isAnnotationPresent(RequiresAuthorization.class)) {
             if (!isUserAuthorized(handler)) {
                 throw new SecurityException("User is not authorized!");
             }
