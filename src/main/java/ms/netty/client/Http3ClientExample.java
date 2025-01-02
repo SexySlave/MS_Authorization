@@ -92,7 +92,7 @@ public final class Http3ClientExample {
                 public void run() {
                     while (quicChannel.isOpen()) {
                         try {
-                            TimeUnit.MILLISECONDS.sleep(1000 * 5);
+                            TimeUnit.MILLISECONDS.sleep(1000 * 60 * 12);
                             Http3HeadersFrame frame = new DefaultHttp3HeadersFrame();
 
                             frame.headers().method("GET").path("/secure")
