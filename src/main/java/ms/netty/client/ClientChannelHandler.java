@@ -62,7 +62,7 @@ public class ClientChannelHandler extends Http3RequestStreamInboundHandler {
     }
 
     // function which creates new channel and sends request
-    // its main idea of QUICK protocol to send each request in new channel
+    // its main idea of QUIC protocol to send each request in new channel
     public void createNewChannelAndSendRequest(QuicChannel quicChannel, Http3HeadersFrame http3HeadersFrame) throws InterruptedException, IOException {
         log.debug("Creating new quicChannel");
         Http3.newRequestStream(quicChannel, new ClientChannelHandlerDefault(quicChannel, http3HeadersFrame)).sync().getNow().closeFuture();
